@@ -1,0 +1,16 @@
+[project]
+name = "backend"
+version = "0.1.0"
+description = "FastAPI backend for Clouder-DJ"
+readme = "README.md"
+authors = [
+    { name = "tarodo", email = "rsvolozhanin@gmail.com" }
+]
+requires-python = ">=3.13"
+# Dependencies are managed in requirements.txt and requirements-dev.txt
+# to be installed with `uv pip install -r requirements.txt`
+dependencies = []
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
