@@ -1,7 +1,7 @@
 .PHONY: dev lint format test docker-build
 
 dev:
-	uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+	docker compose up --build
 
 lint:
 	pre-commit run --all-files
@@ -12,6 +12,3 @@ format:
 
 test:
 	pytest
-
-docker-build:
-	docker build -t backend .
