@@ -13,7 +13,7 @@ services:
       redis:
         condition: service_healthy
     volumes:
-      - ./backend/app:/app/app
+      - ./backend:/app
 
   db:
     image: postgres:15

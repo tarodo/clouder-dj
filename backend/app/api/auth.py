@@ -2,15 +2,19 @@ import secrets
 from urllib.parse import urlencode
 
 import httpx
-from fastapi import APIRouter, HTTPException, Request, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from fastapi.responses import JSONResponse, RedirectResponse
+from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.api.deps import get_db
 from app.core.security import (
     create_access_token,
     create_pkce_challenge,
     create_refresh_token,
 )
 from app.core.settings import settings
+from app.crud import crud_user
+from app.schemas.user import UserCreate, UserUpdate
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -51,24 +55,30 @@ def login():
 
 
 @router.get("/callback")
-async def callback(request: Request, code: str, state: str):
+async def callback(
+    request: Request, code: str, state: str, db: AsyncSession = Depends(get_db)
+):
     """
     Handles the callback from Spotify after user authentication.
     Exchanges the authorization code for an access token and fetches user profile.
-    Returns JWT and user profile.
     """
+    # Verify state matches
     stored_state = request.cookies.get("spotify_auth_state")
-    code_verifier = request.cookies.get("spotify_code_verifier")
-
-    if not stored_state or stored_state != state:
+    if not stored_state or state != stored_state:
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST, detail="State mismatch"
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="State mismatch",
         )
+
+    # Get code verifier from cookies
+    code_verifier = request.cookies.get("spotify_code_verifier")
     if not code_verifier:
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST, detail="Code verifier not found"
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Code verifier not found",
         )
 
+    # Exchange code for access token
     token_data = {
         "grant_type": "authorization_code",
         "code": code,
@@ -78,45 +88,54 @@ async def callback(request: Request, code: str, state: str):
     }
 
     async with httpx.AsyncClient() as client:
-        token_response = await client.post(
-            SPOTIFY_TOKEN_URL,
-            data=token_data,
-            auth=(
-                settings.SPOTIFY_CLIENT_ID,
-                settings.SPOTIFY_CLIENT_SECRET,
-            ),
-        )
-
+        token_response = await client.post(SPOTIFY_TOKEN_URL, data=token_data)
         if token_response.status_code != 200:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"Failed to retrieve token from Spotify: {token_response.text}",
+                detail="Failed to get access token",
             )
-        spotify_tokens = token_response.json()
+        token_info = token_response.json()
 
-        headers = {"Authorization": f"Bearer {spotify_tokens['access_token']}"}
-        profile_response = await client.get(SPOTIFY_API_URL, headers=headers)
-
+        # Get user profile
+        headers = {"Authorization": f"Bearer {token_info['access_token']}"}
+        profile_response = await client.get(
+            "https://api.spotify.com/v1/me", headers=headers
+        )
         if profile_response.status_code != 200:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"Failed to retrieve user profile from Spotify: {profile_response.text}",  # noqa: E501
+                detail="Failed to get user profile",
             )
         user_profile = profile_response.json()
 
-    user_id = user_profile["id"]
-    access_token = create_access_token(data={"sub": user_id})
-    refresh_token = create_refresh_token(data={"sub": user_id})
+    # Save/update user in DB
+    user = await crud_user.get_user_by_spotify_id(db, spotify_id=user_profile["id"])
+    if user:
+        user_in_update = UserUpdate(
+            display_name=user_profile.get("display_name"),
+            email=user_profile.get("email"),
+        )
+        await crud_user.update_user(db=db, db_obj=user, obj_in=user_in_update)
+    else:
+        user_in_create = UserCreate(
+            spotify_id=user_profile["id"],
+            display_name=user_profile.get("display_name"),
+            email=user_profile.get("email"),
+        )
+        await crud_user.create_user(db=db, obj_in=user_in_create)
+
+    spotify_id = user_profile["id"]
+
+    access_token = create_access_token(data={"sub": spotify_id})
+    refresh_token = create_refresh_token(data={"sub": spotify_id})
 
     response_data = {
         "access_token": access_token,
         "refresh_token": refresh_token,
         "token_type": "bearer",
-        "user_profile": user_profile,
     }
 
     response = JSONResponse(content=response_data)
-    response.delete_cookie("spotify_auth_state")
-    response.delete_cookie("spotify_code_verifier")
-
+    response.delete_cookie(key="spotify_auth_state")
+    response.delete_cookie(key="spotify_code_verifier")
     return response
