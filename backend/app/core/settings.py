@@ -1,4 +1,5 @@
 from pydantic_settings import BaseSettings, SettingsConfigDict
+from typing import List
 
 
 class Settings(BaseSettings):
@@ -19,6 +20,16 @@ class Settings(BaseSettings):
     JWT_SECRET: str
     JWT_ALGO: str = "HS256"
     BASE_URL: str = "http://localhost:8000"
+
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
+    REFRESH_TOKEN_EXPIRE_DAYS: int = 7
+
+    SPOTIFY_AUTH_URL: str = "https://accounts.spotify.com/authorize"
+    SPOTIFY_TOKEN_URL: str = "https://accounts.spotify.com/api/token"
+    SPOTIFY_API_URL: str = "https://api.spotify.com/v1/me"
+    SPOTIFY_SCOPES: str = "user-read-private user-read-email"
+
+    CORS_ALLOW_ORIGINS: List[str] = ["*"]
 
     @property
     def database_url(self) -> str:

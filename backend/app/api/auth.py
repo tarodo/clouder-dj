@@ -18,11 +18,6 @@ from app.schemas.user import UserCreate, UserUpdate
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
-SPOTIFY_AUTH_URL = "https://accounts.spotify.com/authorize"
-SPOTIFY_TOKEN_URL = "https://accounts.spotify.com/api/token"  # noqa: S105
-SPOTIFY_API_URL = "https://api.spotify.com/v1/me"
-SCOPES = "user-read-private user-read-email"
-
 
 @router.get("/login")
 def login():
@@ -37,12 +32,12 @@ def login():
         "client_id": settings.SPOTIFY_CLIENT_ID,
         "response_type": "code",
         "redirect_uri": f"{settings.BASE_URL}/auth/callback",
-        "scope": SCOPES,
+        "scope": settings.SPOTIFY_SCOPES,
         "state": state,
         "code_challenge": code_challenge,
         "code_challenge_method": "S256",
     }
-    spotify_auth_url = f"{SPOTIFY_AUTH_URL}?{urlencode(query_params)}"
+    spotify_auth_url = f"{settings.SPOTIFY_AUTH_URL}?{urlencode(query_params)}"
 
     response = RedirectResponse(url=spotify_auth_url)
     response.set_cookie(
@@ -88,7 +83,7 @@ async def callback(
     }
 
     async with httpx.AsyncClient() as client:
-        token_response = await client.post(SPOTIFY_TOKEN_URL, data=token_data)
+        token_response = await client.post(settings.SPOTIFY_TOKEN_URL, data=token_data)
         if token_response.status_code != 200:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
@@ -98,9 +93,7 @@ async def callback(
 
         # Get user profile
         headers = {"Authorization": f"Bearer {token_info['access_token']}"}
-        profile_response = await client.get(
-            "https://api.spotify.com/v1/me", headers=headers
-        )
+        profile_response = await client.get(settings.SPOTIFY_API_URL, headers=headers)
         if profile_response.status_code != 200:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
