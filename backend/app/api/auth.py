@@ -13,7 +13,7 @@ from app.core.security import (
     create_refresh_token,
 )
 from app.core.settings import settings
-from app.crud import crud_user
+from app.crud import crud_spotify_token, crud_user
 from app.schemas.user import UserCreate, UserUpdate
 
 router = APIRouter(prefix="/auth", tags=["auth"])
@@ -108,14 +108,19 @@ async def callback(
             display_name=user_profile.get("display_name"),
             email=user_profile.get("email"),
         )
-        await crud_user.update_user(db=db, db_obj=user, obj_in=user_in_update)
+        user = await crud_user.update_user(db=db, db_obj=user, obj_in=user_in_update)
     else:
         user_in_create = UserCreate(
             spotify_id=user_profile["id"],
             display_name=user_profile.get("display_name"),
             email=user_profile.get("email"),
         )
-        await crud_user.create_user(db=db, obj_in=user_in_create)
+        user = await crud_user.create_user(db=db, obj_in=user_in_create)
+
+    # Save/update Spotify tokens in DB
+    await crud_spotify_token.create_or_update_token(
+        db=db, user=user, token_info=token_info
+    )
 
     spotify_id = user_profile["id"]
 

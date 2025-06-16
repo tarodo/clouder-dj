@@ -17,6 +17,7 @@ class Settings(BaseSettings):
 
     SPOTIFY_CLIENT_ID: str
     SPOTIFY_CLIENT_SECRET: str
+    ENCRYPTION_KEY: str
     JWT_SECRET: str
     JWT_ALGO: str = "HS256"
     BASE_URL: str = "http://localhost:8000"

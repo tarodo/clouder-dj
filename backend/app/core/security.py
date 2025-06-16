@@ -7,10 +7,13 @@ from typing import Any
 from fastapi import HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
 from jose import JWTError, jwt
+from cryptography.fernet import Fernet
 
 from app.core.settings import settings
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/callback")
+
+fernet = Fernet(settings.ENCRYPTION_KEY.encode())
 
 
 def create_access_token(data: dict, expires_delta: timedelta | None = None) -> str:
@@ -67,3 +70,13 @@ def create_pkce_challenge() -> tuple[str, str]:
         .decode("utf-8")
     )
     return code_verifier, code_challenge
+
+
+def encrypt_data(data: str) -> str:
+    """Encrypts a string."""
+    return fernet.encrypt(data.encode()).decode()
+
+
+def decrypt_data(encrypted_data: str) -> str:
+    """Decrypts a string."""
+    return fernet.decrypt(encrypted_data.encode()).decode()

@@ -15,7 +15,7 @@ ${imports if imports else ""}
 
 # revision identifiers, used by Alembic.
 revision: str = '${up_revision}'
-down_revision: Union[str, None] = ${down_revision}
+down_revision: Union[str, None] = '${down_revision}'
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
