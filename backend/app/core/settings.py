@@ -14,6 +14,12 @@ class Settings(BaseSettings):
     DB_PASS: str
     DB_NAME: str
 
+    SPOTIFY_CLIENT_ID: str
+    SPOTIFY_CLIENT_SECRET: str
+    JWT_SECRET: str
+    JWT_ALGO: str = "HS256"
+    BASE_URL: str = "http://localhost:8000"
+
     @property
     def database_url(self) -> str:
         """Get the database URL."""
