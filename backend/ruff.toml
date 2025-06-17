@@ -1,13 +1,12 @@
 # Enable Pyflakes `E` and `F` codes by default.
 # E,F,I,N,Q,S,B
-select = ["E", "F", "I", "N", "Q", "S", "B"]
-ignore = []
+[lint]
+ignore = ["B008"]
+select = ["E", "F", "B"]
 
 # Allow autofix for all enabled rules (when `--fix`) is provided.
 fixable = ["ALL"]
 unfixable = []
-
-line-length = 88
 
 # Exclude a variety of commonly ignored directories.
 exclude = [

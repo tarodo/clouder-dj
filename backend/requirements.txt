@@ -4,5 +4,10 @@ pydantic-settings
 sqlalchemy[asyncio]
 asyncpg
 httpx
+python-jose[cryptography]
 taskiq
 redis
+alembic
+pydantic[email]
+psycopg2-binary
+structlog
