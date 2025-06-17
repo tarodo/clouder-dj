@@ -3,6 +3,11 @@
 dev:
 	docker compose up --build
 
+dev-restart:
+	docker compose down -v
+	docker compose up --build
+	docker compose exec backend alembic upgrade head
+
 lint:
 	pre-commit run --all-files
 

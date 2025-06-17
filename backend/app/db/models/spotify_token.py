@@ -5,12 +5,13 @@ from sqlalchemy import DateTime, ForeignKey, Integer, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base_class import Base
+from app.db.models.mixins import TimestampMixin
 
 if TYPE_CHECKING:
     from .user import User
 
 
-class SpotifyToken(Base):
+class SpotifyToken(Base, TimestampMixin):
     __tablename__ = "spotify_tokens"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
