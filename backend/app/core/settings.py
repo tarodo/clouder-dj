@@ -28,14 +28,26 @@ class Settings(BaseSettings):
     SPOTIFY_AUTH_URL: str = "https://accounts.spotify.com/authorize"
     SPOTIFY_TOKEN_URL: str = "https://accounts.spotify.com/api/token"
     SPOTIFY_API_URL: str = "https://api.spotify.com/v1/me"
-    SPOTIFY_SCOPES: str = "user-read-private user-read-email"
+    SPOTIFY_SCOPES: str = "user-read-email user-read-private"
 
     CORS_ALLOW_ORIGINS: List[str] = ["*"]
+
+    # Logging
+    LOG_LEVEL: str = "INFO"
+    LOG_RENDERER: str = "console"  # "console" for development, "json" for production
+
+    # Security
+    SECURE_COOKIES: bool = True
 
     @property
     def database_url(self) -> str:
         """Get the database URL."""
         return f"postgresql+asyncpg://{self.DB_USER}:{self.DB_PASS}@{self.DB_HOST}:{self.DB_PORT}/{self.DB_NAME}"
+
+    @property
+    def SPOTIFY_REDIRECT_URI(self) -> str:
+        """Get the Spotify redirect URI."""
+        return f"{self.BASE_URL}/auth/callback"
 
 
 settings = Settings()  # type: ignore[call-arg]
