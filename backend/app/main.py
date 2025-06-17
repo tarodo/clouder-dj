@@ -1,5 +1,6 @@
 import time
 import uuid
+from contextlib import asynccontextmanager
 
 import structlog
 from fastapi import FastAPI, Request
@@ -21,11 +22,19 @@ setup_logging()
 
 log = structlog.get_logger()
 
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    log.info("Starting Clouder-DJ API", base_url=settings.BASE_URL)
+    yield
+
+
 app = FastAPI(
     title="Clouder-DJ API",
     version="0.1.0",
     description="API for Clouder-DJ, a collaborative music queueing service.",
     responses=API_RESPONSES,
+    lifespan=lifespan,
 )
 
 # CORS middleware
@@ -69,11 +78,6 @@ app.include_router(me.router)
 app.add_exception_handler(StarletteHTTPException, http_exception_handler)
 app.add_exception_handler(RequestValidationError, validation_exception_handler)
 app.add_exception_handler(Exception, unhandled_exception_handler)
-
-
-@app.on_event("startup")
-async def startup_event():
-    log.info("Starting Clouder-DJ API", base_url=settings.BASE_URL)
 
 
 @app.get("/healthz")
