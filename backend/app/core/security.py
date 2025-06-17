@@ -60,7 +60,7 @@ def verify_token(token: str) -> dict[str, Any]:
 
 
 def create_pkce_challenge() -> tuple[str, str]:
-    """Create a PKCE code verifier and challenge."""
+    """Create a PKCE code verifier and challenge pair."""
     code_verifier = (
         base64.urlsafe_b64encode(os.urandom(32)).rstrip(b"=").decode("utf-8")
     )

@@ -8,8 +8,6 @@ class UserBase(BaseModel):
 
 class UserCreate(UserBase):
     spotify_id: str
-    email: EmailStr
-    display_name: str
 
 
 class UserUpdate(UserBase):
