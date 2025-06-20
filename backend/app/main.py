@@ -8,7 +8,7 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
-from app.api import auth, me
+from app.api import artists, auth, labels, me, releases, tracks
 from app.core.exceptions import (
     API_RESPONSES,
     http_exception_handler,
@@ -74,6 +74,10 @@ async def logging_middleware(request: Request, call_next):
 
 app.include_router(auth.router)
 app.include_router(me.router)
+app.include_router(artists.router)
+app.include_router(labels.router)
+app.include_router(releases.router)
+app.include_router(tracks.router)
 
 app.add_exception_handler(StarletteHTTPException, http_exception_handler)
 app.add_exception_handler(RequestValidationError, validation_exception_handler)
