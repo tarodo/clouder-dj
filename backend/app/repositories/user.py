@@ -2,12 +2,13 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.models.user import User
+from app.repositories.base import BaseRepository
 from app.schemas.user import UserCreate, UserUpdate
 
 
-class UserRepository:
+class UserRepository(BaseRepository[User]):
     def __init__(self, db: AsyncSession):
-        self.db = db
+        super().__init__(model=User, db=db)
 
     async def get_by_spotify_id(self, *, spotify_id: str) -> User | None:
         result = await self.db.execute(
