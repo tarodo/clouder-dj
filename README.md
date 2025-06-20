@@ -4,7 +4,7 @@ A collaborative music queueing service with Spotify integration and support for 
 
 ## Architecture
 
-- **backend/** — FastAPI, async Python, PostgreSQL, Redis, OAuth2 via Spotify, structured logging, Alembic, Taskiq.
+- **backend/** — FastAPI, async Python, PostgreSQL, Redis, OAuth2 via Spotify, structured logging, Alembic, Taskiq. See [backend/ARCHITECTURE.md](backend/ARCHITECTURE.md) for the detailed application architecture.
 - **db/** — service files for dev environment (env, volume).
 - **docker-compose.yml** — dev stack: backend, db (Postgres), redis.
 
