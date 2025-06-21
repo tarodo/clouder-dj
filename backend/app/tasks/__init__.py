@@ -1,3 +1,3 @@
-from .test_tasks import hello_world_task
+from .test_tasks import collect_beatport_charts_task
 
-__all__ = ["hello_world_task"]
+__all__ = ["collect_beatport_charts_task"]

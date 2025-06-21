@@ -6,7 +6,14 @@ log = structlog.get_logger(__name__)
 
 
 @broker.task
-async def hello_world_task(message: str) -> dict[str, str]:
-    """A simple task that logs a message."""
-    log.info("Hello world task running!", message=message)
-    return {"status": "ok", "message": message}
+async def collect_beatport_charts_task(
+    style_id: int, date_from: str, date_to: str
+) -> dict[str, str]:
+    """A stub task to collect music from beatport."""
+    log.info(
+        "Beatport collection task running!",
+        style_id=style_id,
+        date_from=date_from,
+        date_to=date_to,
+    )
+    return {"status": "ok", "message": "Task started"}

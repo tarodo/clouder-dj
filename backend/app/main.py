@@ -1,3 +1,4 @@
+from datetime import date
 import time
 import uuid
 from contextlib import asynccontextmanager
@@ -7,6 +8,7 @@ from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.exceptions import HTTPException as StarletteHTTPException
+from pydantic import BaseModel
 
 from app.api import artists, auth, labels, me, releases, styles, tracks
 from app.broker import broker
@@ -20,7 +22,7 @@ from app.core.logging import setup_logging
 from app.core.settings import settings
 
 # Import tasks to register them
-from app.tasks.test_tasks import hello_world_task
+from app.tasks.test_tasks import collect_beatport_charts_task
 
 setup_logging()
 
@@ -100,8 +102,18 @@ async def health_check():
     return {"status": "ok"}
 
 
-@app.post("/test-task", status_code=202)
-async def run_test_task():
-    """Endpoint to test the task queue."""
-    task = await hello_world_task.kiq("Hello from API!")
+class BeatportCollectionRequest(BaseModel):
+    style_id: int
+    date_from: date
+    date_to: date
+
+
+@app.post("/collect/beatport", status_code=202)
+async def run_beatport_collection_task(params: BeatportCollectionRequest):
+    """Endpoint to start a beatport collection task."""
+    task = await collect_beatport_charts_task.kiq(
+        style_id=params.style_id,
+        date_from=params.date_from.isoformat(),
+        date_to=params.date_to.isoformat(),
+    )
     return {"task_id": task.task_id}
