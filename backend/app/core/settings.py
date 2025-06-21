@@ -27,7 +27,7 @@ class Settings(BaseSettings):
 
     SPOTIFY_AUTH_URL: str = "https://accounts.spotify.com/authorize"
     SPOTIFY_TOKEN_URL: str = "https://accounts.spotify.com/api/token"
-    SPOTIFY_API_URL: str = "https://api.spotify.com/v1/me"
+    SPOTIFY_API_URL: str = "https://api.spotify.com/v1"
     SPOTIFY_SCOPES: str = "user-read-email user-read-private"
 
     CORS_ALLOW_ORIGINS: List[str] = ["*"]
