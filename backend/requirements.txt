@@ -11,3 +11,4 @@ alembic
 pydantic[email]
 psycopg2-binary
 structlog
+taskiq-redis

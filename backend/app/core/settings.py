@@ -36,6 +36,10 @@ class Settings(BaseSettings):
     LOG_LEVEL: str = "INFO"
     LOG_RENDERER: str = "console"  # "console" for development, "json" for production
 
+    # Redis for Taskiq
+    REDIS_HOST: str = "redis"
+    REDIS_PORT: int = 6379
+
     # Security
     SECURE_COOKIES: bool = True
 
@@ -48,6 +52,11 @@ class Settings(BaseSettings):
     def SPOTIFY_REDIRECT_URI(self) -> str:
         """Get the Spotify redirect URI."""
         return f"{self.BASE_URL}/auth/callback"
+
+    @property
+    def redis_url(self) -> str:
+        """Get the Redis URL for Taskiq."""
+        return f"redis://{self.REDIS_HOST}:{self.REDIS_PORT}"
 
 
 settings = Settings()  # type: ignore[call-arg]
