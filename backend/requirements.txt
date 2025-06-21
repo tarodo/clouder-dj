@@ -5,7 +5,7 @@ sqlalchemy[asyncio]
 asyncpg
 httpx
 python-jose[cryptography]
-taskiq
+taskiq[reload]
 redis
 alembic
 pydantic[email]
