@@ -39,5 +39,16 @@ services:
       timeout: 5s
       retries: 5
 
+  worker:
+    build:
+      context: ./backend
+    command: taskiq worker app.worker:broker --reload
+    env_file:
+      - ./backend/.env.dev
+    depends_on:
+      - redis
+    volumes:
+      - ./backend:/app
+
 volumes:
   postgres_data:
