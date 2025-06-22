@@ -42,7 +42,7 @@ class ExternalData(Base):
         ENUM(ExternalDataEntityType, name="entity_type_enum", create_type=True),
         nullable=False,
     )
-    entity_id: Mapped[int] = mapped_column(Integer, nullable=False)
+    entity_id: Mapped[int] = mapped_column(Integer, nullable=True)
     external_id: Mapped[str] = mapped_column(String, nullable=False)
     raw_data: Mapped[dict] = mapped_column(JSONB, nullable=True)
     updated_at: Mapped[datetime] = mapped_column(
