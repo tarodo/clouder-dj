@@ -8,7 +8,17 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
-from app.api import artists, auth, labels, me, releases, tracks
+from app.api import (
+    artists,
+    auth,
+    collection,
+    labels,
+    me,
+    releases,
+    styles,
+    tasks,
+    tracks,
+)
 from app.broker import broker
 from app.core.exceptions import (
     API_RESPONSES,
@@ -20,7 +30,6 @@ from app.core.logging import setup_logging
 from app.core.settings import settings
 
 # Import tasks to register them
-from app.tasks.test_tasks import hello_world_task
 
 setup_logging()
 
@@ -87,6 +96,9 @@ app.include_router(artists.router)
 app.include_router(labels.router)
 app.include_router(releases.router)
 app.include_router(tracks.router)
+app.include_router(styles.router)
+app.include_router(collection.router)
+app.include_router(tasks.router)
 
 app.add_exception_handler(StarletteHTTPException, http_exception_handler)
 app.add_exception_handler(RequestValidationError, validation_exception_handler)
@@ -97,10 +109,3 @@ app.add_exception_handler(Exception, unhandled_exception_handler)
 async def health_check():
     """Health check endpoint."""
     return {"status": "ok"}
-
-
-@app.post("/test-task", status_code=202)
-async def run_test_task():
-    """Endpoint to test the task queue."""
-    task = await hello_world_task.kiq("Hello from API!")
-    return {"task_id": task.task_id}
