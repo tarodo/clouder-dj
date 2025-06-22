@@ -8,7 +8,17 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
-from app.api import artists, auth, collection, labels, me, releases, styles, tracks
+from app.api import (
+    artists,
+    auth,
+    collection,
+    labels,
+    me,
+    releases,
+    styles,
+    tasks,
+    tracks,
+)
 from app.broker import broker
 from app.core.exceptions import (
     API_RESPONSES,
@@ -88,6 +98,7 @@ app.include_router(releases.router)
 app.include_router(tracks.router)
 app.include_router(styles.router)
 app.include_router(collection.router)
+app.include_router(tasks.router)
 
 app.add_exception_handler(StarletteHTTPException, http_exception_handler)
 app.add_exception_handler(RequestValidationError, validation_exception_handler)
