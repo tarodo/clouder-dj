@@ -1,11 +1,12 @@
 from typing import Any
-
+import time
 import httpx
 import structlog
 from sqlalchemy import func
 from sqlalchemy import select
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
+from taskiq import Context, TaskiqDepends, TaskiqResult
 
 from app.broker import broker
 from app.clients.beatport import BeatportAPIClient
@@ -118,7 +119,22 @@ def _process_record_sync(record_id: int) -> bool:
             processing_service.close()
 
 
-async def _process_collected_tracks_data() -> dict[str, int]:
+async def _set_result(
+    task_id: str, progress: dict[str, Any], elapsed_time: float
+) -> None:
+    await broker.result_backend.set_result(
+        task_id,
+        TaskiqResult(
+            is_err=False,
+            execution_time=elapsed_time,
+            return_value=progress,
+        ),
+    )
+
+
+async def _process_collected_tracks_data(
+    task_id: str, start_time: float, phase: str
+) -> dict[str, Any]:
     """Phase 2: Process collected data."""
     log.info("Starting collected tracks data processing")
 
@@ -137,17 +153,24 @@ async def _process_collected_tracks_data() -> dict[str, int]:
         log.info("Found unprocessed records", count=total_to_process)
 
     # Process records synchronously
-    for i, record_id in enumerate(record_ids):
+    for record_id in record_ids:
         if _process_record_sync(record_id):
             processed_count += 1
         else:
             failed_count += 1
 
         # Log progress periodically
-        if (i + 1) % 10 == 0 or (i + 1) == total_to_process:
-            log.info("Processing progress", progress=i + 1, total=total_to_process)
+        progress = {
+            "phase": phase,
+            "processed": processed_count,
+            "failed": failed_count,
+            "total": total_to_process,
+        }
+        elapsed_time = time.perf_counter() - start_time
+        await _set_result(task_id, progress, elapsed_time)
 
     return {
+        "phase": phase,
         "processed": processed_count,
         "failed": failed_count,
         "total": total_to_process,
@@ -156,25 +179,35 @@ async def _process_collected_tracks_data() -> dict[str, int]:
 
 @broker.task
 async def collect_bp_tracks_task(
-    bp_token: str, style_id: int, date_from: str, date_to: str
+    bp_token: str,
+    style_id: int,
+    date_from: str,
+    date_to: str,
+    context: Context = TaskiqDepends(),
 ) -> dict[str, Any]:
     """A task to collect and process tracks from Beatport."""
+    task_id = context.message.task_id
     log.info(
         "Beatport tracks collection task started",
         style_id=style_id,
         date_from=date_from,
         date_to=date_to,
+        task_id=task_id,
     )
-
+    start_time = time.perf_counter()
+    await _set_result(
+        task_id, {"phase": "collecting", "processed": 0, "failed": 0, "total": 0}, 0
+    )
     # Phase 1: Collect all raw data
     await _collect_raw_tracks_data(bp_token, style_id, date_from, date_to)
 
     # Phase 2: Process collected data
-    processing_results = await _process_collected_tracks_data()
+    processing_results = await _process_collected_tracks_data(
+        task_id, start_time, "processing"
+    )
 
-    summary = {
-        "status": "ok",
-        **processing_results,
-    }
-    log.info("Task finished", **summary)
-    return summary
+    finished_results = processing_results.copy()
+    finished_results["phase"] = "finished"
+
+    log.info("Task finished", **finished_results)
+    return finished_results
