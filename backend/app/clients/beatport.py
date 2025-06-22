@@ -29,7 +29,6 @@ class BeatportAPIClient:
     async def _make_request(
         self, url: str, params: dict[str, Any] | None = None
     ) -> dict[str, Any]:
-        url = url if url.startswith("https://") else f"https://{url}"
         log.debug("Requesting Beatport API", url=url, params=params)
         try:
             response = await self.client.get(url, params=params, headers=self.headers)
