@@ -10,6 +10,7 @@ from sqlalchemy.orm import sessionmaker, Session
 
 from app.core.settings import settings
 from app.db.models import Artist, ExternalData, Label, Release, Track
+from app.db.models.external_data import ExternalDataProvider, ExternalDataEntityType
 
 log = structlog.get_logger(__name__)
 
@@ -35,22 +36,59 @@ class SyncDataProcessingService:
 
     def _get_or_create_label(self, beatport_label_data: dict[str, Any]) -> Label:
         label_name = beatport_label_data["name"]
+        external_label_id = str(beatport_label_data["id"])
 
+        # Check if label already exists in ExternalData
+        external_data = (
+            self.db.query(ExternalData)
+            .filter(
+                ExternalData.provider == ExternalDataProvider.BEATPORT,
+                ExternalData.entity_type == ExternalDataEntityType.LABEL,
+                ExternalData.external_id == external_label_id,
+            )
+            .first()
+        )
+
+        if external_data and external_data.entity_id:
+            # Return existing label
+            label = (
+                self.db.query(Label).filter(Label.id == external_data.entity_id).first()
+            )
+            if label:
+                return label
+
+        # Check if label exists by name (fallback)
         label = self.db.query(Label).filter(Label.name == label_name).first()
-        if label:
-            return label
 
-        try:
-            label = Label(name=label_name)
-            self.db.add(label)
+        if not label:
+            try:
+                label = Label(name=label_name)
+                self.db.add(label)
+                self.db.flush()
+                self.db.refresh(label)
+                log.info("Created new label", label_name=label_name)
+            except IntegrityError:
+                self.db.rollback()
+                label = self.db.query(Label).filter(Label.name == label_name).one()
+
+        # Create or update ExternalData record
+        if not external_data:
+            external_data = ExternalData(
+                provider=ExternalDataProvider.BEATPORT,
+                entity_type=ExternalDataEntityType.LABEL,
+                external_id=external_label_id,
+                entity_id=label.id,
+                raw_data=beatport_label_data,
+            )
+            self.db.add(external_data)
             self.db.flush()
-            self.db.refresh(label)
-            log.info("Created new label", label_name=label_name)
-            return label
-        except IntegrityError:
-            self.db.rollback()
-            label = self.db.query(Label).filter(Label.name == label_name).one()
-            return label
+        elif external_data.entity_id != label.id:
+            # Update existing record
+            external_data.entity_id = label.id
+            external_data.raw_data = beatport_label_data
+            self.db.flush()
+
+        return label
 
     def _get_or_create_artists(
         self, beatport_artists_data: list[dict[str, Any]]
