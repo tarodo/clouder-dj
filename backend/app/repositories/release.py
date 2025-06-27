@@ -20,7 +20,7 @@ class ReleaseRepository(BaseRepository[Release]):
         """
         Efficiently gets or creates releases.
         `releases_data` is a list of dicts, e.g.,
-        [{'name': '...', 'label_id': ..., 'release_date': ...}]
+        [{'name': '...', 'label_id': ...}]
         Returns a dictionary mapping (name, label_id) to Release object.
         """
         if not releases_data:

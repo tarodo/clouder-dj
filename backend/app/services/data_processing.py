@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from datetime import date
 from typing import Any, Dict, List, Tuple, cast
 
 import structlog
@@ -120,10 +119,6 @@ class DataProcessingService:
             if not label:
                 continue
 
-            release_date = None
-            if release_data.get("publish_date"):
-                release_date = date.fromisoformat(release_data["publish_date"])
-
             release_key = (release_data["name"], label.id)
             if release_key not in release_data_map:
                 release_data_map[release_key] = release_data
@@ -131,7 +126,6 @@ class DataProcessingService:
                     {
                         "name": release_data["name"],
                         "label_id": label.id,
-                        "release_date": release_date,
                     }
                 )
 
