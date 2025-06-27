@@ -88,10 +88,9 @@ async def collect_bp_tracks_task(
 
     if processing_results.get("failed", 0) > 0:
         final_phase = "failed"
-        final_results = {"phase": final_phase, **processing_results}
     else:
         final_phase = "finished"
-        final_results = {"phase": final_phase, **processing_results}
+    final_results = {"phase": final_phase, **processing_results}
 
     log.info("Task finished", **final_results)
     await _update_task_progress(final_phase, processing_results)
