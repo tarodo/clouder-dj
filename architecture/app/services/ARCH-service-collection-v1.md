@@ -8,7 +8,7 @@ version: v1
 status: planned
 created: 2025-06-27
 updated: 2025-06-27
-tags: [collection, beatport, service, refactoring]
+tags: [collection, beatport, spotify, service, refactoring]
 depends_on: [ARCH-service-data-processing, ARCH-infra-background-tasks]
 referenced_by: []
 ---
@@ -21,12 +21,13 @@ This service is planned to centralize the business logic related to data collect
 - **Unit of Work:** The service will be responsible for managing the database transaction (commit/rollback) for the operations it orchestrates.
 
 ## Behavior
-- **`collect_beatport_tracks_raw(...)`**: This method will be responsible for interacting with the `BeatportAPIClient` to fetch raw track data and using the `ExternalDataRepository` to persist this raw data. This logic will be moved from `_collect_raw_tracks_data` in the task file.
-- **`process_unprocessed_beatport_tracks(...)`**: This method will orchestrate the processing of the collected raw data by invoking the `DataProcessingService`. This logic will be moved from `_process_collected_tracks_data` in the task file.
+- **`collect_beatport_tracks_raw(...)`**: Interacts with the `BeatportAPIClient` to fetch raw track data and uses the `ExternalDataRepository` to persist it.
+- **`process_unprocessed_beatport_tracks(...)`**: Orchestrates the processing of the collected raw Beatport data by invoking the `DataProcessingService`.
+- **`enrich_tracks_with_spotify_data(...)`**: Orchestrates the Spotify enrichment background task. It will fetch tracks missing Spotify data from the `TrackRepository`, call the `SpotifyAPIClient` to search for them by ISRC, and persist the results (both found and not-found) to the `ExternalDataRepository`.
 
 ## Evolution
 ### Planned
-- v1: Initial design and implementation as part of a major refactoring effort (see `TASK-2025-003`). The service will be created and all relevant logic from `collection_tasks.py` will be migrated into it.
+- v1: Initial design and implementation. The service will be created and all relevant data collection logic from `collection_tasks.py` will be migrated into it. It will also include the new functionality for Spotify track data enrichment (see `TASK-2025-001`).
 
 ### Historical
 —
