@@ -1,13 +1,16 @@
 from typing import AsyncGenerator
 
+import httpx
 import structlog
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.clients.spotify import SpotifyAPIClient
 from app.core.security import verify_token
 from app.db.models.user import User
 from app.db.session import AsyncSessionLocal
+from app.services.auth import AuthService
 from app.services.user import UserService
 
 log = structlog.get_logger()
@@ -48,3 +51,16 @@ async def get_current_user(
         log.warning("User not found in DB", spotify_id=spotify_id)
         raise HTTPException(status_code=404, detail="User not found")
     return user
+
+
+async def get_spotify_api_client() -> AsyncGenerator[SpotifyAPIClient, None]:
+    async with httpx.AsyncClient() as client:
+        yield SpotifyAPIClient(client=client)
+
+
+def get_auth_service(
+    db: AsyncSession = Depends(get_db),
+    spotify_client: SpotifyAPIClient = Depends(get_spotify_api_client),
+) -> AuthService:
+    """FastAPI dependency to get an instance of AuthService."""
+    return AuthService(db=db, spotify_client=spotify_client)

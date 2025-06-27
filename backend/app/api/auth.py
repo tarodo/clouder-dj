@@ -1,14 +1,11 @@
 from secrets import token_urlsafe
 from urllib.parse import urlencode
 
-import httpx
 import structlog
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from fastapi.responses import JSONResponse, RedirectResponse
-from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.deps import get_db
-from app.clients.spotify import SpotifyAPIClient
+from app.api.deps import get_auth_service
 from app.core.security import create_pkce_challenge
 from app.core.settings import settings
 from app.services.auth import AuthService
@@ -64,7 +61,7 @@ async def callback(
     code: str,
     state: str,
     request: Request,
-    db: AsyncSession = Depends(get_db),
+    auth_service: AuthService = Depends(get_auth_service),
 ):
     """
     Exchanges the authorization code for an access token and fetches user profile.
@@ -93,13 +90,9 @@ async def callback(
             detail="Code verifier not found",
         )
 
-    async with httpx.AsyncClient() as http_client:
-        spotify_client = SpotifyAPIClient(client=http_client)
-        auth_service = AuthService(db=db, spotify_client=spotify_client)
-        tokens = await auth_service.handle_spotify_callback(
-            code=code, code_verifier=code_verifier
-        )
-
+    tokens = await auth_service.handle_spotify_callback(
+        code=code, code_verifier=code_verifier
+    )
     response = JSONResponse(content=tokens)
     response.delete_cookie("spotify_auth_state")
     response.delete_cookie("spotify_code_verifier")
