@@ -2,10 +2,16 @@ from __future__ import annotations
 
 from typing import Any, Dict, List, Tuple
 
-from sqlalchemy import select, tuple_
+from sqlalchemy import func, select, tuple_
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import joinedload
 
+from app.db.models.external_data import (
+    ExternalData,
+    ExternalDataEntityType,
+    ExternalDataProvider,
+)
 from app.db.models.track import Track, track_artists
 from app.repositories.base import BaseRepository
 
@@ -79,3 +85,58 @@ class TrackRepository(BaseRepository[Track]):
             )
 
         return tracks_map
+
+    async def get_tracks_missing_spotify_link(
+        self, *, offset: int, limit: int
+    ) -> Tuple[List[Track], int]:
+        """
+        Gets tracks that have an ISRC but no associated Spotify external data link.
+
+        This method uses a NOT EXISTS subquery to efficiently find tracks that are
+        missing a corresponding entry in the external_data table for the SPOTIFY
+        provider. It also preloads the 'artists' relationship for the returned tracks.
+
+        Args:
+            offset: The number of records to skip for pagination.
+            limit: The maximum number of records to return.
+
+        Returns:
+            A tuple containing a list of Track objects and the total count of
+            all such tracks in the database.
+        """
+        # Define the NOT EXISTS subquery condition
+        exists_condition = (
+            select(ExternalData.id)
+            .where(
+                ExternalData.provider == ExternalDataProvider.SPOTIFY,
+                ExternalData.entity_type == ExternalDataEntityType.TRACK,
+                ExternalData.entity_id == Track.id,
+            )
+            .exists()
+        )
+
+        # Base query to find tracks with ISRC and where the Spotify link does not exist
+        base_query = select(Track).where(
+            Track.isrc.is_not(None),
+            ~exists_condition,
+        )
+
+        # Query for total count
+        count_query = select(func.count()).select_from(base_query.subquery())
+        total_result = await self.db.execute(count_query)
+        total = total_result.scalar_one()
+
+        if total == 0:
+            return [], 0
+
+        # Query for the paginated items with artists preloaded
+        items_query = (
+            base_query.options(joinedload(Track.artists))
+            .order_by(Track.id)
+            .offset(offset)
+            .limit(limit)
+        )
+        items_result = await self.db.execute(items_query)
+        items = list(items_result.scalars().unique().all())
+
+        return items, total

@@ -43,6 +43,10 @@ class Settings(BaseSettings):
     # Security
     SECURE_COOKIES: bool = True
 
+    # Spotify Enrichment Task
+    SPOTIFY_SEARCH_BATCH_SIZE: int = 50
+    SPOTIFY_API_ERROR_SLEEP_S: int = 5
+
     @property
     def database_url(self) -> str:
         """Get the database URL."""
