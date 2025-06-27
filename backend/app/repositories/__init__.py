@@ -1,4 +1,5 @@
 from .artist import ArtistRepository
+from .external_data import ExternalDataRepository
 from .label import LabelRepository
 from .release import ReleaseRepository
 from .spotify_token import SpotifyTokenRepository
@@ -14,4 +15,5 @@ __all__ = [
     "ReleaseRepository",
     "StyleRepository",
     "TrackRepository",
+    "ExternalDataRepository",
 ]

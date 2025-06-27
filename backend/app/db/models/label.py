@@ -16,6 +16,6 @@ class Label(Base, TimestampMixin):
     __tablename__ = "labels"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
-    name: Mapped[str] = mapped_column(String, index=True, nullable=False)
+    name: Mapped[str] = mapped_column(String, index=True, nullable=False, unique=True)
 
     releases: Mapped[List["Release"]] = relationship("Release", back_populates="label")

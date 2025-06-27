@@ -16,7 +16,7 @@ class Artist(Base, TimestampMixin):
     __tablename__ = "artists"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
-    name: Mapped[str] = mapped_column(String, index=True, nullable=False)
+    name: Mapped[str] = mapped_column(String, index=True, nullable=False, unique=True)
 
     tracks: Mapped[List["Track"]] = relationship(
         "Track", secondary="track_artists", back_populates="artists"

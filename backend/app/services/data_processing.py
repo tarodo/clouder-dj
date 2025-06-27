@@ -1,187 +1,157 @@
 from __future__ import annotations
 
 from datetime import date
-from typing import Any
+from typing import List
 
 import structlog
-from sqlalchemy import create_engine
-from sqlalchemy.exc import IntegrityError
-from sqlalchemy.orm import sessionmaker, Session
+from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.settings import settings
-from app.db.models import Artist, ExternalData, Label, Release, Track
-from app.db.models.external_data import ExternalDataProvider, ExternalDataEntityType
+from app.db.models import ExternalData, Track
+from app.repositories import (
+    ArtistRepository,
+    ExternalDataRepository,
+    LabelRepository,
+    ReleaseRepository,
+    TrackRepository,
+)
 
 log = structlog.get_logger(__name__)
 
 
-class SyncDataProcessingService:
-    """Synchronous version of DataProcessingService for use in taskiq workers."""
+class DataProcessingService:
+    """Service to process external data in batches and create DB entities."""
 
-    def __init__(self, db: Session):
+    def __init__(
+        self,
+        db: AsyncSession,
+        artist_repo: ArtistRepository,
+        label_repo: LabelRepository,
+        release_repo: ReleaseRepository,
+        track_repo: TrackRepository,
+        external_data_repo: ExternalDataRepository,
+    ):
         self.db = db
+        self.artist_repo = artist_repo
+        self.label_repo = label_repo
+        self.release_repo = release_repo
+        self.track_repo = track_repo
+        self.external_data_repo = external_data_repo
 
-    @classmethod
-    def create(cls) -> "SyncDataProcessingService":
-        """Create a sync processing service with its own session."""
-        sync_url = settings.database_url.replace("+asyncpg", "")
-        engine = create_engine(sync_url)
-        SessionLocal = sessionmaker(bind=engine)
-        session = SessionLocal()
-        return cls(session)
-
-    def close(self):
-        """Close the database session."""
-        self.db.close()
-
-    def _get_or_create_label(self, beatport_label_data: dict[str, Any]) -> Label:
-        label_name = beatport_label_data["name"]
-        external_label_id = str(beatport_label_data["id"])
-
-        # Check if label already exists in ExternalData
-        external_data = (
-            self.db.query(ExternalData)
-            .filter(
-                ExternalData.provider == ExternalDataProvider.BEATPORT,
-                ExternalData.entity_type == ExternalDataEntityType.LABEL,
-                ExternalData.external_id == external_label_id,
-            )
-            .first()
-        )
-
-        if external_data and external_data.entity_id:
-            # Return existing label
-            label = (
-                self.db.query(Label).filter(Label.id == external_data.entity_id).first()
-            )
-            if label:
-                return label
-
-        # Check if label exists by name (fallback)
-        label = self.db.query(Label).filter(Label.name == label_name).first()
-
-        if not label:
-            try:
-                label = Label(name=label_name)
-                self.db.add(label)
-                self.db.flush()
-                self.db.refresh(label)
-                log.info("Created new label", label_name=label_name)
-            except IntegrityError:
-                self.db.rollback()
-                label = self.db.query(Label).filter(Label.name == label_name).one()
-
-        # Create or update ExternalData record
-        if not external_data:
-            external_data = ExternalData(
-                provider=ExternalDataProvider.BEATPORT,
-                entity_type=ExternalDataEntityType.LABEL,
-                external_id=external_label_id,
-                entity_id=label.id,
-                raw_data=beatport_label_data,
-            )
-            self.db.add(external_data)
-            self.db.flush()
-        elif external_data.entity_id != label.id:
-            # Update existing record
-            external_data.entity_id = label.id
-            external_data.raw_data = beatport_label_data
-            self.db.flush()
-
-        return label
-
-    def _get_or_create_artists(
-        self, beatport_artists_data: list[dict[str, Any]]
-    ) -> list[Artist]:
-        artists = []
-        for artist_data in beatport_artists_data:
-            artist_name = artist_data["name"]
-
-            artist = self.db.query(Artist).filter(Artist.name == artist_name).first()
-            if artist:
-                artists.append(artist)
-                continue
-
-            try:
-                artist = Artist(name=artist_name)
-                self.db.add(artist)
-                self.db.flush()
-                self.db.refresh(artist)
-                log.info("Created new artist", artist_name=artist_name)
-                artists.append(artist)
-            except IntegrityError:
-                self.db.rollback()
-                artist = self.db.query(Artist).filter(Artist.name == artist_name).one()
-                artists.append(artist)
-        return artists
-
-    def _get_or_create_release(self, beatport_release_data: dict[str, Any]) -> Release:
-        release_name = beatport_release_data["name"]
-        label = self._get_or_create_label(beatport_release_data["label"])
-
-        release = (
-            self.db.query(Release)
-            .filter(Release.name == release_name, Release.label_id == label.id)
-            .first()
-        )
-        if release:
-            return release
-
-        try:
-            release_date = None
-            if "release_date" in beatport_release_data:
-                release_date = date.fromisoformat(beatport_release_data["release_date"])
-            release = Release(
-                name=release_name, label_id=label.id, release_date=release_date
-            )
-            self.db.add(release)
-            self.db.flush()
-            self.db.refresh(release)
-            log.info("Created new release", release_name=release_name)
-            return release
-        except IntegrityError:
-            self.db.rollback()
-            release = (
-                self.db.query(Release)
-                .filter(Release.name == release_name, Release.label_id == label.id)
-                .one()
-            )
-            return release
-
-    def process_beatport_track_data(self, external_data_record: ExternalData) -> None:
-        raw_data = external_data_record.raw_data
-        if not raw_data:
-            log.warning("ExternalData has no raw_data", id=external_data_record.id)
+    async def process_batch(self, records: List[ExternalData]) -> None:
+        if not records:
             return
 
         try:
-            artists = self._get_or_create_artists(raw_data["artists"])
-            release = self._get_or_create_release(raw_data["release"])
-
-            track = (
-                self.db.query(Track)
-                .filter(Track.name == raw_data["name"], Track.release_id == release.id)
-                .first()
+            # 1. Extract and bulk get/create labels
+            label_names = {
+                r.raw_data["release"]["label"]["name"]
+                for r in records
+                if r.raw_data
+                and "release" in r.raw_data
+                and "label" in r.raw_data["release"]
+            }
+            labels_map = await self.label_repo.bulk_get_or_create_by_name(
+                list(label_names)
             )
 
-            if not track:
-                track = Track(
-                    name=raw_data["name"],
-                    duration_ms=raw_data.get("length_ms"),
-                    bpm=raw_data.get("bpm"),
-                    key=raw_data.get("key", {}).get("name"),
-                    release_id=release.id,
-                    artists=artists,
-                )
-                self.db.add(track)
-                self.db.flush()
-                self.db.refresh(track)
+            # 2. Extract and bulk get/create artists
+            artist_names = {
+                artist["name"]
+                for r in records
+                if r.raw_data and "artists" in r.raw_data
+                for artist in r.raw_data["artists"]
+            }
+            artists_map = await self.artist_repo.bulk_get_or_create_by_name(
+                list(artist_names)
+            )
 
-            external_data_record.entity_id = track.id
-            self.db.add(external_data_record)
-            self.db.commit()
-            log.info("Successfully processed track", track_name=raw_data["name"])
+            # 3. Extract and bulk get/create releases
+            releases_to_create = []
+            for r in records:
+                if not (r.raw_data and "release" in r.raw_data):
+                    continue
+                release_data = r.raw_data["release"]
+                label_data = release_data.get("label")
+                if not label_data:
+                    continue
+                label = labels_map.get(label_data["name"])
+                if not label:
+                    continue
+
+                release_date = None
+                if release_data.get("publish_date"):
+                    release_date = date.fromisoformat(release_data["publish_date"])
+
+                releases_to_create.append(
+                    {
+                        "name": release_data["name"],
+                        "label_id": label.id,
+                        "release_date": release_date,
+                    }
+                )
+
+            unique_releases_to_create = [
+                dict(t) for t in {tuple(d.items()) for d in releases_to_create}
+            ]
+            releases_map = await self.release_repo.bulk_get_or_create(
+                unique_releases_to_create
+            )
+
+            # 4. Prepare and bulk create tracks
+            tracks_to_create = []
+            for r in records:
+                if not r.raw_data:
+                    continue
+
+                release_data = r.raw_data.get("release")
+                if not release_data or not release_data.get("label"):
+                    continue
+
+                label = labels_map.get(release_data["label"]["name"])
+                if not label:
+                    continue
+
+                release_key = (release_data["name"], label.id)
+                release = releases_map.get(release_key)
+                if not release:
+                    continue
+
+                artist_ids = [
+                    artists_map[artist["name"]].id
+                    for artist in r.raw_data.get("artists", [])
+                    if artist["name"] in artists_map
+                ]
+
+                tracks_to_create.append(
+                    {
+                        "name": r.raw_data["name"],
+                        "duration_ms": r.raw_data.get("length_ms"),
+                        "bpm": r.raw_data.get("bpm"),
+                        "key": r.raw_data.get("key", {}).get("name"),
+                        "release_id": release.id,
+                        "artist_ids": artist_ids,
+                        "external_id": r.external_id,
+                    }
+                )
+
+            created_tracks: List[Track] = (
+                await self.track_repo.bulk_create_with_relations(tracks_to_create)
+            )
+
+            # 5. Prepare and bulk update ExternalData records
+            updates_for_external_data = {
+                track_data["external_id"]: created_track.id
+                for track_data, created_track in zip(tracks_to_create, created_tracks)
+            }
+            await self.external_data_repo.bulk_update_entity_ids(
+                updates_for_external_data
+            )
+
+            await self.db.commit()
+            log.info("Successfully processed batch of tracks", count=len(records))
         except Exception:
-            self.db.rollback()
-            log.exception("Failed to process record", id=external_data_record.id)
+            await self.db.rollback()
+            log.exception(
+                "Failed to process batch of tracks", record_count=len(records)
+            )
             raise

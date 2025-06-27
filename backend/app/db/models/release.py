@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import date
 from typing import TYPE_CHECKING, List
 
-from sqlalchemy import Date, ForeignKey, Integer, String
+from sqlalchemy import Date, ForeignKey, Integer, String, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base_class import Base
@@ -24,3 +24,7 @@ class Release(Base, TimestampMixin):
 
     label: Mapped[Label | None] = relationship("Label", back_populates="releases")
     tracks: Mapped[List["Track"]] = relationship("Track", back_populates="release")
+
+    __table_args__ = (
+        UniqueConstraint("name", "label_id", name="uq_releases_name_label_id"),
+    )
