@@ -23,8 +23,6 @@ class UserRepository(BaseRepository[User]):
             email=obj_in.email,
         )
         self.db.add(db_obj)
-        await self.db.commit()
-        await self.db.refresh(db_obj)
         return db_obj
 
     async def update(self, *, db_obj: User, obj_in: UserUpdate) -> User:
@@ -33,6 +31,4 @@ class UserRepository(BaseRepository[User]):
             if value is not None:
                 setattr(db_obj, field, value)
         self.db.add(db_obj)
-        await self.db.commit()
-        await self.db.refresh(db_obj)
         return db_obj
