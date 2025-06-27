@@ -1,36 +1,34 @@
 ---
 id: ARCH-infra-background-tasks
-title: "Infrastructure: Background Task Processing"
-type: component
+title: "Infrastructure: Background Tasks"
 layer: infrastructure
 owner: '@team-backend'
 version: v1
-status: planned
+status: current
 created: 2025-06-21
-updated: 2025-06-21
+updated: 2025-06-27
 tags: [taskiq, redis, worker, async]
 depends_on: []
 referenced_by: []
 ---
 ## Context
-This document describes the planned architecture for asynchronous background task processing using Taskiq. This system is essential for offloading long-running operations from the main API thread, such as data scraping from external sources (e.g., Beatport) and data enrichment (e.g., finding matches on Spotify).
+This document describes the architecture for asynchronous background task processing using Taskiq. This system is essential for offloading long-running operations from the main API thread, such as data scraping from external sources (e.g., Beatport).
 
 ## Structure
-- **Broker:** Redis will be used as the message broker. The existing `redis` service in `docker-compose.yml` will be utilized.
-- **Taskiq Integration:** A Taskiq `AsyncBroker` instance will be configured within the FastAPI application to allow API endpoints to send tasks to the broker.
-- **Worker:** A dedicated `worker` service will be added to `docker-compose.yml`. This service will run the Taskiq worker process, which listens for tasks on the Redis queue and executes them.
-- **Tasks:** Tasks will be defined in a dedicated module, e.g., `app/tasks/`. The initial implementation will include a simple test task to verify the setup.
+- **Broker:** Redis is used as the message broker. A `ListQueueBroker` is configured in `app/broker.py` and initialized in the FastAPI application lifecycle (`app/main.py`).
+- **Worker:** A dedicated `worker` service in `docker-compose.yml` runs the Taskiq worker process via the `app/worker.py` entrypoint. It listens for tasks on the Redis queue and executes them.
+- **Tasks:** Tasks are defined in the `app/tasks/` module. The primary implemented task is `collect_bp_tracks_task` in `app/tasks/collection_tasks.py`, which handles fetching and processing data from Beatport.
 
 ## Behavior
-- An API endpoint or another service calls `task.kiq()` to send a task message to the Redis broker.
+- The `/collect/beatport` API endpoint (`app/api/collection.py`) receives a request and calls `collect_bp_tracks_task.kiq()` to send a task message to the Redis broker.
 - The Taskiq worker, running in its own container, picks up the message from the queue.
 - The worker executes the task function with the provided arguments.
-- Results (if any) can be stored or retrieved via Taskiq's result backend mechanism, which will also be configured to use Redis.
+- Results and status are stored in the Redis result backend. The status can be queried via the `/tasks/status/{task_id}` endpoint.
+- **Architectural Issue**: The `collect_bp_tracks_task` currently contains significant business logic, including direct database session management and repository instantiation. This violates the principle of thin task layers.
 
 ## Evolution
 ### Planned
-- v1: Initial setup with Redis broker, a dedicated worker service, and a simple test task.
-- Future: Implement specific tasks for Beatport scraping and Spotify data enrichment.
+- **Refactoring**: Move all business logic out of `app/tasks/collection_tasks.py` and into a new `CollectionService`. The task will be refactored to be a thin wrapper that calls this service. A dependency injection pattern will be established for tasks to receive services and DB sessions. See `TASK-2025-003`.
 
 ### Historical
-—
+- v1: Initial implementation with Redis broker, a dedicated worker service, and a data collection task that contains business logic.

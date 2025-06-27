@@ -20,14 +20,14 @@ from app.db.base_class import Base
 class ExternalDataProvider(str, enum.Enum):
     BEATPORT = "BEATPORT"
     SPOTIFY = "SPOTIFY"
-    TIDAL = "tidal"
+    TIDAL = "TIDAL"
 
 
 class ExternalDataEntityType(str, enum.Enum):
-    ARTIST = "artist"
-    LABEL = "label"
-    RELEASE = "release"
-    TRACK = "track"
+    ARTIST = "ARTIST"
+    LABEL = "LABEL"
+    RELEASE = "RELEASE"
+    TRACK = "TRACK"
 
 
 class ExternalData(Base):

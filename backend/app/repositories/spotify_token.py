@@ -44,6 +44,4 @@ class SpotifyTokenRepository:
             )
             self.db.add(db_token)
 
-        await self.db.commit()
-        await self.db.refresh(db_token)
         return db_token

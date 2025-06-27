@@ -258,10 +258,8 @@ class DataProcessingService:
             if all_external_data_to_upsert:
                 await self.external_data_repo.bulk_upsert(all_external_data_to_upsert)
 
-            await self.db.commit()
             log.info("Successfully processed batch of tracks", count=len(records))
 
         except Exception as e:
-            await self.db.rollback()
             log.error("Failed to process batch", error=str(e), count=len(records))
             raise
