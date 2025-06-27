@@ -1,9 +1,10 @@
 from __future__ import annotations
 
-from typing import List
+from typing import Any, Dict, List
 
-from sqlalchemy import bindparam, select, update
+from sqlalchemy import bindparam, func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.dialects.postgresql import insert
 
 from app.db.models.external_data import (
     ExternalData,
@@ -51,3 +52,28 @@ class ExternalDataRepository(BaseRepository[ExternalData]):
             .values(entity_id=bindparam("entity_id_val"))
         )
         await self.db.execute(stmt, update_mappings)
+
+    async def bulk_upsert(self, records_data: List[Dict[str, Any]]) -> None:
+        """
+        Efficiently bulk inserts or updates ExternalData records.
+
+        On conflict with the unique constraint on (provider, entity_type, external_id),
+        it updates the raw_data and updated_at fields. It also updates the entity_id
+        if a new non-null value is provided, without overwriting an existing one
+        with NULL.
+        """
+        if not records_data:
+            return
+
+        stmt = insert(ExternalData).values(records_data)
+        upsert_stmt = stmt.on_conflict_do_update(
+            constraint="uq_external_data_provider_entity_external_id",
+            set_={
+                "raw_data": stmt.excluded.raw_data,
+                "entity_id": func.coalesce(
+                    stmt.excluded.entity_id, ExternalData.entity_id
+                ),
+                "updated_at": func.now(),
+            },
+        )
+        await self.db.execute(upsert_stmt)

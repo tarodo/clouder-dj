@@ -1,54 +1,71 @@
 from __future__ import annotations
 
-from typing import Any, List
+from typing import Any, Dict, List, Tuple
 
+from sqlalchemy import select, tuple_
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.repositories.base import BaseRepository
 from app.db.models.track import Track, track_artists
+from app.repositories.base import BaseRepository
 
 
 class TrackRepository(BaseRepository[Track]):
     def __init__(self, db: AsyncSession):
         super().__init__(model=Track, db=db)
 
-    async def bulk_create_with_relations(
+    async def bulk_get_or_create_with_relations(
         self, tracks_data: List[dict[str, Any]]
-    ) -> List[Track]:
+    ) -> Dict[Tuple[str, int], Track]:
         """
-        Bulk creates tracks and their M2M relationships with artists.
+        Efficiently gets or creates tracks and their M2M relationships with artists.
         `tracks_data` is a list of dicts, each with track attributes
         and an 'artist_ids' key, e.g.,
         [{'name': 'T1', 'release_id': 1, 'artist_ids': [1, 2]}, ...]
-        Returns a list of the newly created Track objects
-        (without relationships loaded).
+        Returns a dictionary mapping (name, release_id) to the corresponding Track.
         """
         if not tracks_data:
-            return []
+            return {}
 
-        # Separate track core data from artist relations
+        # Separate track core data from artist relations for insertion
         track_core_data = [
             {k: v for k, v in t.items() if k not in ["artist_ids", "external_id"]}
             for t in tracks_data
         ]
 
-        # Bulk insert tracks and get their new IDs
-        insert_stmt = insert(Track).values(track_core_data).returning(Track.id)
-        result = await self.db.execute(insert_stmt)
-        created_track_ids = result.scalars().all()
+        # 1. Insert/Ignore: Use ON CONFLICT DO NOTHING to insert new tracks
+        insert_stmt = insert(Track).values(track_core_data)
+        on_conflict_stmt = insert_stmt.on_conflict_do_nothing(
+            index_elements=["name", "release_id"]
+        )
+        await self.db.execute(on_conflict_stmt)
 
-        # Prepare artist associations
+        # 2. Select: Fetch all required tracks (both new and pre-existing)
+        keys_to_fetch = {(t["name"], t["release_id"]) for t in track_core_data}
+        select_stmt = select(Track).where(
+            tuple_(Track.name, Track.release_id).in_(keys_to_fetch)
+        )
+        result = await self.db.execute(select_stmt)
+        fetched_tracks = result.scalars().all()
+        tracks_map: Dict[Tuple[str, int], Track] = {
+            (t.name, t.release_id): t for t in fetched_tracks
+        }
+
+        # 3. Prepare and bulk insert M2M artist associations
         artist_associations = []
-        for i, track_data in enumerate(tracks_data):
-            track_id = created_track_ids[i]
-            for artist_id in track_data.get("artist_ids", []):
+        # Create a map of (name, release_id) -> artist_ids from original input
+        artist_ids_map = {
+            (t["name"], t["release_id"]): t.get("artist_ids", []) for t in tracks_data
+        }
+
+        for key, track in tracks_map.items():
+            for artist_id in artist_ids_map.get(key, []):
                 artist_associations.append(
-                    {"track_id": track_id, "artist_id": artist_id}
+                    {"track_id": track.id, "artist_id": artist_id}
                 )
 
-        # Bulk insert associations, ignoring any potential duplicates
         if artist_associations:
+            # Deduplicate associations before inserting
             unique_associations = [
                 dict(t) for t in {tuple(d.items()) for d in artist_associations}
             ]
@@ -58,10 +75,4 @@ class TrackRepository(BaseRepository[Track]):
                 .on_conflict_do_nothing()
             )
 
-        # Construct and return Track objects without an extra SELECT query
-        created_tracks = []
-        for i, core_data in enumerate(track_core_data):
-            track = Track(**core_data, id=created_track_ids[i])
-            created_tracks.append(track)
-
-        return created_tracks
+        return tracks_map
