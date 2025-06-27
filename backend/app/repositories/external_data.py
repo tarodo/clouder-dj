@@ -33,6 +33,18 @@ class ExternalDataRepository(BaseRepository[ExternalData]):
         result = await self.db.execute(stmt)
         return list(result.scalars().all())
 
+    async def count_unprocessed_beatport_tracks(self) -> int:
+        stmt = select(func.count(ExternalData.id)).where(
+            ExternalData.provider == ExternalDataProvider.BEATPORT,
+            ExternalData.entity_type == ExternalDataEntityType.TRACK,
+            ExternalData.entity_id.is_(None),
+        )
+        result = await self.db.execute(stmt)
+        count = result.scalar_one_or_none()
+        if count is None:
+            return 0
+        return count
+
     async def bulk_update_entity_ids(self, updates: dict[str, int]) -> None:
         """
         Bulk update entity_id for ExternalData records.

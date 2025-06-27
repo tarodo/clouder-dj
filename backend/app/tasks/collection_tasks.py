@@ -24,6 +24,7 @@ from app.db.models.external_data import (
 )
 from app.db.session import AsyncSessionLocal
 from app.services.data_processing import DataProcessingService
+from app.services.collection import CollectionService
 
 log = structlog.get_logger(__name__)
 
@@ -206,29 +207,59 @@ async def collect_bp_tracks_task(
     date_to: str,
     context: Context = TaskiqDepends(),
 ) -> dict[str, Any]:
-    """A task to collect and process tracks from Beatport."""
+    """
+    Collect Beatport tracks for a given style and date range.
+
+    This task has two phases:
+    1. Collect raw data from Beatport API
+    2. Process collected data into structured entities
+    """
     task_id = context.message.task_id
     log.info(
-        "Beatport tracks collection task started",
+        "Starting Beatport tracks collection task",
         style_id=style_id,
         date_from=date_from,
         date_to=date_to,
         task_id=task_id,
     )
     start_time = time.perf_counter()
-    await _set_result(
-        task_id, {"phase": "collecting", "processed": 0, "failed": 0, "total": 0}, 0
-    )
+    collection_service = CollectionService()
+
+    async def _update_task_progress(phase: str, progress_data: dict[str, Any]) -> None:
+        progress = {"phase": phase, **progress_data}
+        elapsed_time = time.perf_counter() - start_time
+        await broker.result_backend.set_result(
+            task_id,
+            TaskiqResult(
+                is_err=False,
+                execution_time=elapsed_time,
+                return_value=progress,
+            ),
+        )
+
+    await _update_task_progress("collecting", {"processed": 0, "failed": 0, "total": 0})
+
     # Phase 1: Collect all raw data
-    await _collect_raw_tracks_data(bp_token, style_id, date_from, date_to)
+    await collection_service.collect_beatport_tracks_raw(
+        bp_token=bp_token, style_id=style_id, date_from=date_from, date_to=date_to
+    )
 
     # Phase 2: Process collected data
-    processing_results = await _process_collected_tracks_data(
-        task_id, start_time, "processing"
+    async def batch_progress_callback(progress_data: dict[str, Any]) -> None:
+        await _update_task_progress("processing", progress_data)
+
+    processing_results = await collection_service.process_unprocessed_beatport_tracks(
+        batch_progress_callback=batch_progress_callback
     )
 
-    finished_results = processing_results.copy()
-    finished_results["phase"] = "finished"
+    if processing_results.get("failed", 0) > 0:
+        finished_results = {"phase": "failed", **processing_results}
+    else:
+        finished_results = {"phase": "finished", **processing_results}
 
     log.info("Task finished", **finished_results)
+
+    # Final update to task result
+    await _update_task_progress(finished_results["phase"], processing_results)
+
     return finished_results
