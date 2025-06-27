@@ -9,6 +9,7 @@ from sqlalchemy import (
     Integer,
     String,
     Table,
+    UniqueConstraint,
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -41,4 +42,8 @@ class Track(Base, TimestampMixin):
     release: Mapped["Release"] = relationship("Release", back_populates="tracks")
     artists: Mapped[List["Artist"]] = relationship(
         "Artist", secondary=track_artists, back_populates="tracks"
+    )
+
+    __table_args__ = (
+        UniqueConstraint("name", "release_id", name="uq_track_name_release_id"),
     )

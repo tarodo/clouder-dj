@@ -1,6 +1,13 @@
 from typing import Any
 import time
 import httpx
+from app.repositories import (
+    ArtistRepository,
+    LabelRepository,
+    ReleaseRepository,
+    TrackRepository,
+    ExternalDataRepository,
+)
 import structlog
 from sqlalchemy import func
 from sqlalchemy import select
@@ -16,7 +23,7 @@ from app.db.models.external_data import (
     ExternalDataProvider,
 )
 from app.db.session import AsyncSessionLocal
-from app.services.data_processing import SyncDataProcessingService
+from app.services.data_processing import DataProcessingService
 
 log = structlog.get_logger(__name__)
 
@@ -93,32 +100,6 @@ async def _collect_raw_tracks_data(
             await session.commit()
 
 
-def _process_record_sync(record_id: int) -> bool:
-    """Process a single record synchronously to avoid greenlet issues."""
-    processing_service = None
-    try:
-        processing_service = SyncDataProcessingService.create()
-
-        # Get the record
-        record = processing_service.db.get(ExternalData, record_id)
-        if not record:
-            log.warning("Record not found", record_id=record_id)
-            return False
-
-        # Process the record
-        processing_service.process_beatport_track_data(record)
-        return True
-
-    except Exception as e:
-        log.exception(
-            "Failed to process record sync", record_id=record_id, error=str(e)
-        )
-        return False
-    finally:
-        if processing_service:
-            processing_service.close()
-
-
 async def _set_result(
     task_id: str, progress: dict[str, Any], elapsed_time: float
 ) -> None:
@@ -135,44 +116,84 @@ async def _set_result(
 async def _process_collected_tracks_data(
     task_id: str, start_time: float, phase: str
 ) -> dict[str, Any]:
-    """Phase 2: Process collected data."""
+    """Phase 2: Process collected data in batches."""
     log.info("Starting collected tracks data processing")
-
+    BATCH_SIZE = 500
     processed_count = 0
-    failed_count = 0
+    total_to_process = 0
 
+    # First, get total count
     async with AsyncSessionLocal() as session:
-        stmt = select(ExternalData.id).where(
+        stmt = select(func.count(ExternalData.id)).where(
             ExternalData.provider == ExternalDataProvider.BEATPORT,
             ExternalData.entity_type == ExternalDataEntityType.TRACK,
             ExternalData.entity_id.is_(None),
         )
         result = await session.execute(stmt)
-        record_ids = [row[0] for row in result.fetchall()]
-        total_to_process = len(record_ids)
+        total_to_process = result.scalar_one()
         log.info("Found unprocessed records", count=total_to_process)
 
-    # Process records synchronously
-    for record_id in record_ids:
-        if _process_record_sync(record_id):
-            processed_count += 1
-        else:
-            failed_count += 1
+    if total_to_process == 0:
+        return {"phase": phase, "processed": 0, "failed": 0, "total": 0}
 
-        # Log progress periodically
-        progress = {
-            "phase": phase,
-            "processed": processed_count,
-            "failed": failed_count,
-            "total": total_to_process,
-        }
-        elapsed_time = time.perf_counter() - start_time
-        await _set_result(task_id, progress, elapsed_time)
+    # Process in batches
+    while True:
+        async with AsyncSessionLocal() as session:
+            # Init repos and service for this batch
+            artist_repo = ArtistRepository(session)
+            label_repo = LabelRepository(session)
+            release_repo = ReleaseRepository(session)
+            track_repo = TrackRepository(session)
+            external_data_repo = ExternalDataRepository(session)
 
+            data_processing_service = DataProcessingService(
+                db=session,
+                artist_repo=artist_repo,
+                label_repo=label_repo,
+                release_repo=release_repo,
+                track_repo=track_repo,
+                external_data_repo=external_data_repo,
+            )
+
+            # Fetch a batch of records
+            records = await external_data_repo.get_unprocessed_beatport_tracks(
+                limit=BATCH_SIZE
+            )
+            if not records:
+                break  # No more records to process
+
+            try:
+                await data_processing_service.process_batch(records)
+                processed_count += len(records)
+            except Exception:
+                log.error(
+                    "Batch processing failed. Stopping task.", batch_size=len(records)
+                )
+                progress = {
+                    "phase": "failed",
+                    "processed": processed_count,
+                    "failed": total_to_process - processed_count,
+                    "total": total_to_process,
+                }
+                elapsed_time = time.perf_counter() - start_time
+                await _set_result(task_id, progress, elapsed_time)
+                return progress
+
+            # Log progress
+            progress = {
+                "phase": phase,
+                "processed": processed_count,
+                "failed": 0,  # We stop on first failure
+                "total": total_to_process,
+            }
+            elapsed_time = time.perf_counter() - start_time
+            await _set_result(task_id, progress, elapsed_time)
+
+    log.info("Finished processing all batches.", processed_count=processed_count)
     return {
         "phase": phase,
         "processed": processed_count,
-        "failed": failed_count,
+        "failed": 0,
         "total": total_to_process,
     }
 
