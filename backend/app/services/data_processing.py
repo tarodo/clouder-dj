@@ -190,6 +190,7 @@ class DataProcessingService:
                     "duration_ms": r.raw_data.get("length_ms"),
                     "bpm": r.raw_data.get("bpm"),
                     "key": r.raw_data.get("key", {}).get("name"),
+                    "isrc": r.raw_data.get("isrc"),
                     "release_id": release.id,
                     "artist_ids": artist_ids,
                     "external_id": r.external_id,
@@ -199,13 +200,17 @@ class DataProcessingService:
         if not tracks_to_create:
             return []
 
-        tracks_map: Dict[Tuple[str, int], Track] = (
+        tracks_map: Dict[Tuple[str, int, str | None], Track] = (
             await self.track_repo.bulk_get_or_create_with_relations(tracks_to_create)
         )
 
         external_data_for_tracks = []
         for track_data in tracks_to_create:
-            track_key = (track_data["name"], track_data["release_id"])
+            track_key = (
+                track_data["name"],
+                track_data["release_id"],
+                track_data["isrc"],
+            )
             fetched_track = tracks_map.get(track_key)
             if not fetched_track:
                 log.warning(

@@ -16,7 +16,7 @@ class TrackRepository(BaseRepository[Track]):
 
     async def bulk_get_or_create_with_relations(
         self, tracks_data: List[dict[str, Any]]
-    ) -> Dict[Tuple[str, int], Track]:
+    ) -> Dict[Tuple[str, int, str | None], Track]:
         """
         Efficiently gets or creates tracks and their M2M relationships with artists.
         `tracks_data` is a list of dicts, each with track attributes
@@ -36,26 +36,29 @@ class TrackRepository(BaseRepository[Track]):
         # 1. Insert/Ignore: Use ON CONFLICT DO NOTHING to insert new tracks
         insert_stmt = insert(Track).values(track_core_data)
         on_conflict_stmt = insert_stmt.on_conflict_do_nothing(
-            index_elements=["name", "release_id"]
+            index_elements=["name", "release_id", "isrc"]
         )
         await self.db.execute(on_conflict_stmt)
 
         # 2. Select: Fetch all required tracks (both new and pre-existing)
-        keys_to_fetch = {(t["name"], t["release_id"]) for t in track_core_data}
+        keys_to_fetch = {
+            (t["name"], t["release_id"], t["isrc"]) for t in track_core_data
+        }
         select_stmt = select(Track).where(
-            tuple_(Track.name, Track.release_id).in_(keys_to_fetch)
+            tuple_(Track.name, Track.release_id, Track.isrc).in_(keys_to_fetch)  # type: ignore
         )
         result = await self.db.execute(select_stmt)
         fetched_tracks = result.scalars().all()
-        tracks_map: Dict[Tuple[str, int], Track] = {
-            (t.name, t.release_id): t for t in fetched_tracks
+        tracks_map: Dict[Tuple[str, int, str | None], Track] = {
+            (t.name, t.release_id, t.isrc): t for t in fetched_tracks
         }
 
         # 3. Prepare and bulk insert M2M artist associations
         artist_associations = []
-        # Create a map of (name, release_id) -> artist_ids from original input
+        # Create a map of (name, release_id, isrc) -> artist_ids from original input
         artist_ids_map = {
-            (t["name"], t["release_id"]): t.get("artist_ids", []) for t in tracks_data
+            (t["name"], t["release_id"], t["isrc"]): t.get("artist_ids", [])
+            for t in tracks_data
         }
 
         for key, track in tracks_map.items():

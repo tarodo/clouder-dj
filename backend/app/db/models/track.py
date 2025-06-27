@@ -37,6 +37,7 @@ class Track(Base, TimestampMixin):
     duration_ms: Mapped[int | None] = mapped_column(Integer, nullable=True)
     bpm: Mapped[float | None] = mapped_column(Float, nullable=True)
     key: Mapped[str | None] = mapped_column(String, nullable=True)
+    isrc: Mapped[str | None] = mapped_column(String, nullable=True)
     release_id: Mapped[int] = mapped_column(ForeignKey("releases.id"), nullable=False)
 
     release: Mapped["Release"] = relationship("Release", back_populates="tracks")
@@ -45,5 +46,7 @@ class Track(Base, TimestampMixin):
     )
 
     __table_args__ = (
-        UniqueConstraint("name", "release_id", name="uq_track_name_release_id"),
+        UniqueConstraint(
+            "name", "release_id", "isrc", name="uq_track_name_release_id_isrc"
+        ),
     )
