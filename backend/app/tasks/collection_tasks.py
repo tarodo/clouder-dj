@@ -2,10 +2,11 @@ import time
 from typing import Any
 
 import structlog
-from taskiq import Context, TaskiqDepends, TaskiqResult
+from taskiq import Context, TaskiqDepends
 
 from app.broker import broker
 from app.tasks.deps import get_collection_service
+from app.tasks.progress import update_task_progress
 
 log = structlog.get_logger(__name__)
 
@@ -37,22 +38,9 @@ async def collect_bp_tracks_task(
     )
     start_time = time.perf_counter()
 
-    async def _update_task_progress(phase: str, progress_data: dict[str, Any]) -> None:
-        """Helper to update the task's result in the backend."""
-        progress = {"phase": phase, **progress_data}
-        elapsed_time = time.perf_counter() - start_time
-        await broker.result_backend.set_result(
-            task_id,
-            TaskiqResult(
-                is_err=False,
-                execution_time=elapsed_time,
-                return_value=progress,
-            ),
-        )
-
     try:
-        await _update_task_progress(
-            "collecting", {"processed": 0, "failed": 0, "total": 0}
+        await update_task_progress(
+            context, start_time, "collecting", {"processed": 0, "failed": 0, "total": 0}
         )
 
         async with get_collection_service() as collection_service:
@@ -66,7 +54,9 @@ async def collect_bp_tracks_task(
 
             # Phase 2: Process collected data
             async def batch_progress_callback(progress_data: dict[str, Any]) -> None:
-                await _update_task_progress("processing", progress_data)
+                await update_task_progress(
+                    context, start_time, "processing", progress_data
+                )
 
             processing_results = (
                 await collection_service.process_unprocessed_beatport_tracks(
@@ -83,7 +73,7 @@ async def collect_bp_tracks_task(
             "failed": 1,
             "total": 0,
         }
-        await _update_task_progress("failed", final_results)
+        await update_task_progress(context, start_time, "failed", final_results)
         return final_results
 
     if processing_results.get("failed", 0) > 0:
@@ -93,7 +83,7 @@ async def collect_bp_tracks_task(
     final_results = {"phase": final_phase, **processing_results}
 
     log.info("Task finished", **final_results)
-    await _update_task_progress(final_phase, processing_results)
+    await update_task_progress(context, start_time, final_phase, processing_results)
     return final_results
 
 
@@ -109,26 +99,15 @@ async def enrich_spotify_data_task(
     log.info("Starting Spotify enrichment task", task_id=task_id)
     start_time = time.perf_counter()
 
-    async def _update_progress(phase: str, progress_data: dict[str, Any]) -> None:
-        """Helper to update the task's result in the backend."""
-        progress = {"phase": phase, **progress_data}
-        elapsed_time = time.perf_counter() - start_time
-        await broker.result_backend.set_result(
-            task_id,
-            TaskiqResult(
-                is_err=False,
-                execution_time=elapsed_time,
-                return_value=progress,
-            ),
-        )
-
     try:
         async with get_collection_service() as collection_service:
 
             async def progress_callback(state: dict[str, Any]) -> None:
                 # AC: reported state includes total, processed, found, not_found,
                 # and errors.
-                await _update_progress("enriching", {**state, "errors": 0})
+                await update_task_progress(
+                    context, start_time, "enriching", {**state, "errors": 0}
+                )
 
             results = await collection_service.enrich_tracks_with_spotify_data(
                 progress_callback=progress_callback
@@ -144,14 +123,14 @@ async def enrich_spotify_data_task(
             "not_found": 0,
             "errors": 1,
         }
-        await _update_progress("failed", final_results)
+        await update_task_progress(context, start_time, "failed", final_results)
         return {"phase": "failed", **final_results}
 
     final_phase = "finished"
     final_results = {**results, "errors": 0}
 
     log.info("Spotify enrichment task finished", **final_results)
-    await _update_progress(final_phase, final_results)
+    await update_task_progress(context, start_time, final_phase, final_results)
     return {"phase": final_phase, **final_results}
 
 
@@ -167,24 +146,13 @@ async def enrich_spotify_artist_data_task(
     log.info("Starting Spotify artist enrichment task", task_id=task_id)
     start_time = time.perf_counter()
 
-    async def _update_progress(phase: str, progress_data: dict[str, Any]) -> None:
-        """Helper to update the task's result in the backend."""
-        progress = {"phase": phase, **progress_data}
-        elapsed_time = time.perf_counter() - start_time
-        await broker.result_backend.set_result(
-            task_id,
-            TaskiqResult(
-                is_err=False,
-                execution_time=elapsed_time,
-                return_value=progress,
-            ),
-        )
-
     try:
         async with get_collection_service() as collection_service:
 
             async def progress_callback(state: dict[str, Any]) -> None:
-                await _update_progress("enriching", {**state, "errors": 0})
+                await update_task_progress(
+                    context, start_time, "enriching", {**state, "errors": 0}
+                )
 
             results = await collection_service.enrich_artists_with_spotify_data(
                 progress_callback=progress_callback
@@ -202,12 +170,12 @@ async def enrich_spotify_artist_data_task(
             "not_found": 0,
             "errors": 1,
         }
-        await _update_progress("failed", final_results)
+        await update_task_progress(context, start_time, "failed", final_results)
         return {"phase": "failed", **final_results}
 
     final_phase = "finished"
     final_results = {**results, "errors": 0}
 
     log.info("Spotify artist enrichment task finished", **final_results)
-    await _update_progress(final_phase, final_results)
+    await update_task_progress(context, start_time, final_phase, final_results)
     return {"phase": final_phase, **final_results}
