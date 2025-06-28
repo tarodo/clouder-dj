@@ -6,6 +6,7 @@ from typing import Any, Awaitable, Callable, Dict, List
 import httpx
 import structlog
 from sqlalchemy.ext.asyncio import AsyncSession
+from rapidfuzz import process, fuzz
 
 from app.clients.beatport import BeatportAPIClient
 from app.clients.spotify import SpotifyAPIClient
@@ -14,6 +15,7 @@ from app.db.models.external_data import (
     ExternalDataEntityType,
     ExternalDataProvider,
 )
+from app.db.models.track import Track
 from app.repositories import ExternalDataRepository, TrackRepository
 from app.services.data_processing import DataProcessingService
 
@@ -32,6 +34,62 @@ class CollectionService:
         self.db = db
         self.external_data_repo = external_data_repo
         self.data_processing_service = data_processing_service
+
+    @staticmethod
+    def _validate_spotify_search_result(
+        track: Track,
+        spotify_result: Dict[str, Any] | None,
+        similarity_threshold: int = 80,
+    ) -> bool:
+        """
+        Validate Spotify search result by matching at least one artist name
+        using fuzzy matching with rapidfuzz.process.extractOne.
+
+        Args:
+            track: Local track object with artists relationship
+            spotify_result: Spotify API search result
+            similarity_threshold: Minimum allowed similarity ratio (0-100) for a match.
+
+        Returns:
+            True if the search result is valid (has a sufficiently matching artist),
+            False otherwise
+        """
+        if not spotify_result:
+            log.warning("No Spotify result found", track=track.isrc)
+            return False
+
+        local_artists_names = [artist.name.lower() for artist in track.artists]
+        spotify_artists_names = [
+            artist["name"].lower() for artist in spotify_result.get("artists", [])
+        ]
+
+        if not spotify_artists_names:
+            log.warning(
+                "No artists found in Spotify result",
+                track=track.isrc,
+                spotify_result=spotify_result,
+            )
+            return False
+
+        for local_artist in local_artists_names:
+            best_match = process.extractOne(
+                local_artist,
+                spotify_artists_names,
+                scorer=fuzz.ratio,
+                score_cutoff=similarity_threshold,
+            )
+
+            if best_match:
+                return True
+
+        log.warning(
+            "No matching artist found",
+            track=track.isrc,
+            local_artists_names=local_artists_names,
+            spotify_artists_names=spotify_artists_names,
+            spotify_result=spotify_result,
+        )
+        return False
 
     async def collect_beatport_tracks_raw(
         self, bp_token: str, style_id: int, date_from: str, date_to: str
@@ -163,18 +221,9 @@ class CollectionService:
                         track.isrc
                     )
 
-                    # Validate search result by matching at least one artist name
-                    is_valid_match = False
-                    if spotify_result:
-                        local_artists = {
-                            artist.name.lower() for artist in track.artists
-                        }
-                        spotify_artists = {
-                            artist["name"].lower()
-                            for artist in spotify_result.get("artists", [])
-                        }
-                        if local_artists.intersection(spotify_artists):
-                            is_valid_match = True
+                    is_valid_match = self._validate_spotify_search_result(
+                        track, spotify_result
+                    )
 
                     if spotify_result and is_valid_match:
                         found_count += 1
