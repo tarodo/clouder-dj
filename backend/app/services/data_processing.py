@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from datetime import date
 from typing import Any, Dict, List, Tuple, cast
 
 import structlog
@@ -120,10 +119,6 @@ class DataProcessingService:
             if not label:
                 continue
 
-            release_date = None
-            if release_data.get("publish_date"):
-                release_date = date.fromisoformat(release_data["publish_date"])
-
             release_key = (release_data["name"], label.id)
             if release_key not in release_data_map:
                 release_data_map[release_key] = release_data
@@ -131,7 +126,6 @@ class DataProcessingService:
                     {
                         "name": release_data["name"],
                         "label_id": label.id,
-                        "release_date": release_date,
                     }
                 )
 
@@ -196,6 +190,7 @@ class DataProcessingService:
                     "duration_ms": r.raw_data.get("length_ms"),
                     "bpm": r.raw_data.get("bpm"),
                     "key": r.raw_data.get("key", {}).get("name"),
+                    "isrc": r.raw_data.get("isrc"),
                     "release_id": release.id,
                     "artist_ids": artist_ids,
                     "external_id": r.external_id,
@@ -205,13 +200,17 @@ class DataProcessingService:
         if not tracks_to_create:
             return []
 
-        tracks_map: Dict[Tuple[str, int], Track] = (
+        tracks_map: Dict[Tuple[str, int, str | None], Track] = (
             await self.track_repo.bulk_get_or_create_with_relations(tracks_to_create)
         )
 
         external_data_for_tracks = []
         for track_data in tracks_to_create:
-            track_key = (track_data["name"], track_data["release_id"])
+            track_key = (
+                track_data["name"],
+                track_data["release_id"],
+                track_data["isrc"],
+            )
             fetched_track = tracks_map.get(track_key)
             if not fetched_track:
                 log.warning(

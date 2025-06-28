@@ -7,6 +7,7 @@ class Track(BaseModel):
     duration_ms: int | None
     bpm: float | None
     key: str | None
+    isrc: str | None
     release_id: int
 
     model_config = ConfigDict(from_attributes=True)
