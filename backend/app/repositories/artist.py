@@ -1,12 +1,17 @@
 from __future__ import annotations
 
-from typing import Dict, List
+from typing import Dict, List, Tuple
 
-from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import func, select
 from sqlalchemy.dialects.postgresql import insert
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.models.artist import Artist
+from app.db.models.external_data import (
+    ExternalData,
+    ExternalDataEntityType,
+    ExternalDataProvider,
+)
 from app.repositories.base import BaseRepository
 
 
@@ -35,3 +40,34 @@ class ArtistRepository(BaseRepository[Artist]):
         artists = result.scalars().all()
 
         return {artist.name: artist for artist in artists}
+
+    async def get_artists_missing_spotify_link(
+        self, *, offset: int, limit: int
+    ) -> Tuple[List[Artist], int]:
+        """
+        Gets artists that do not have an associated Spotify external data link.
+        """
+        exists_condition = (
+            select(ExternalData.id)
+            .where(
+                ExternalData.provider == ExternalDataProvider.SPOTIFY,
+                ExternalData.entity_type == ExternalDataEntityType.ARTIST,
+                ExternalData.entity_id == Artist.id,
+            )
+            .exists()
+        )
+
+        base_query = select(Artist).where(~exists_condition)
+
+        count_query = select(func.count()).select_from(base_query.subquery())
+        total_result = await self.db.execute(count_query)
+        total = total_result.scalar_one()
+
+        if total == 0:
+            return [], 0
+
+        items_query = base_query.order_by(Artist.id).offset(offset).limit(limit)
+        items_result = await self.db.execute(items_query)
+        items = list(items_result.scalars().all())
+
+        return items, total

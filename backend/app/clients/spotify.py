@@ -136,3 +136,45 @@ class SpotifyAPIClient:
 
         log.info("Found track for ISRC", isrc=isrc, track_id=tracks[0].get("id"))
         return tracks[0]
+
+    async def get_artists_by_ids(self, artist_ids: list[str]) -> list[dict] | None:
+        """Fetches details for multiple artists from Spotify by their IDs."""
+        if not artist_ids:
+            return []
+
+        log.debug("Fetching artists by IDs", count=len(artist_ids))
+        try:
+            token = await self._get_client_credentials_token()
+        except httpx.HTTPStatusError:
+            log.error("Could not obtain token for artist search")
+            return None
+
+        headers = {"Authorization": f"Bearer {token}"}
+        all_artists = []
+
+        # Spotify API allows up to 50 IDs per request
+        for i in range(0, len(artist_ids), 50):
+            batch_ids = artist_ids[i : i + 50]
+            params = {"ids": ",".join(batch_ids)}
+
+            try:
+                response = await self.client.get(
+                    f"{settings.SPOTIFY_API_URL}/artists",
+                    headers=headers,
+                    params=params,
+                )
+                response.raise_for_status()
+            except httpx.HTTPStatusError as e:
+                log.warning(
+                    "Spotify get artists by IDs failed",
+                    status_code=e.response.status_code,
+                    response_text=e.response.text,
+                )
+                continue
+
+            data = response.json()
+            artists = data.get("artists", [])
+            all_artists.extend([artist for artist in artists if artist])
+
+        log.info("Fetched artists from Spotify", count=len(all_artists))
+        return all_artists

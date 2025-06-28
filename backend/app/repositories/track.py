@@ -140,3 +140,43 @@ class TrackRepository(BaseRepository[Track]):
         items = list(items_result.scalars().unique().all())
 
         return items, total
+
+    async def get_tracks_by_artist_ids_with_spotify_data(
+        self, *, artist_ids: List[int]
+    ) -> List[Track]:
+        """
+        Gets tracks for a given list of artist IDs that have a Spotify data link.
+        Preloads artists and attaches the relevant external_data record.
+        """
+        if not artist_ids:
+            return []
+
+        # This query fetches Tracks and their associated Spotify ExternalData.
+        # It filters by artist_ids and ensures a Spotify link exists.
+        stmt = (
+            select(Track, ExternalData)
+            .join(track_artists, Track.id == track_artists.c.track_id)
+            .join(
+                ExternalData,
+                (ExternalData.entity_id == Track.id)
+                & (ExternalData.entity_type == ExternalDataEntityType.TRACK)
+                & (ExternalData.provider == ExternalDataProvider.SPOTIFY)
+                & (ExternalData.raw_data.is_not(None)),
+            )
+            .where(track_artists.c.artist_id.in_(artist_ids))
+            .options(joinedload(Track.artists))
+            .distinct()
+        )
+
+        result = await self.db.execute(stmt)
+
+        track_map: Dict[int, Track] = {}
+        for track, ext_data in result.unique().all():
+            if track.id not in track_map:
+                # NOTE: Monkey-patching external_data onto the Track object.
+                # The service layer will need to be aware of this.
+                track.external_data = []  # type: ignore
+                track_map[track.id] = track
+            track_map[track.id].external_data.append(ext_data)  # type: ignore
+
+        return list(track_map.values())
