@@ -1,12 +1,13 @@
 from sqlalchemy import Integer, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, List
 
 from app.db.base_class import Base
 from app.db.models.mixins import TimestampMixin
 
 if TYPE_CHECKING:
     from .spotify_token import SpotifyToken
+    from .category import Category
 
 
 class User(Base, TimestampMixin):
@@ -20,5 +21,10 @@ class User(Base, TimestampMixin):
         "SpotifyToken",
         back_populates="user",
         uselist=False,
+        cascade="all, delete-orphan",
+    )
+    categories: Mapped[List["Category"]] = relationship(
+        "Category",
+        back_populates="user",
         cascade="all, delete-orphan",
     )

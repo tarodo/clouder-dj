@@ -1,3 +1,3 @@
 # Tasks
 
-This section contains the task board for the project.
+This section contains tasks related to project development.

@@ -6,8 +6,7 @@ from .release import Release  # noqa: F401
 from .track import Track, track_artists  # noqa: F401
 from .external_data import ExternalData  # noqa: F401
 from .style import Style  # noqa: F401
-
-# from .other_model import OtherModel  # Добавляй сюда новые модели
+from .category import Category  # noqa: F401
 
 __all__ = [
     "User",
@@ -19,4 +18,5 @@ __all__ = [
     "track_artists",
     "ExternalData",
     "Style",
+    "Category",
 ]
