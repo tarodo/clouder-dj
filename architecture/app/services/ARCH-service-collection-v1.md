@@ -5,29 +5,29 @@ type: service
 layer: application
 owner: '@team-backend'
 version: v1
-status: planned
+status: current
 created: 2025-06-27
-updated: 2025-06-27
+updated: 2025-06-28
 tags: [collection, beatport, spotify, service, refactoring]
-depends_on: [ARCH-service-data-processing, ARCH-infra-background-tasks]
+depends_on: [ARCH-service-data-processing, ARCH-client-beatport, ARCH-client-spotify]
 referenced_by: []
 ---
 ## Context
-This service is planned to centralize the business logic related to data collection and processing orchestration. Currently, this logic is improperly located within the task layer (`app/tasks/collection_tasks.py`), mixing infrastructure concerns with business rules. This refactoring will improve separation of concerns, testability, and maintainability.
+This service centralizes the business logic for data collection and enrichment. It orchestrates interactions with external APIs (like Beatport and Spotify) and internal services to fetch, process, and enrich music data. It was created by refactoring logic out of the task layer (`app/tasks/collection_tasks.py`) to improve separation of concerns.
 
 ## Structure
-- **Class:** `CollectionService` in a new file `app/services/collection.py`.
-- **Dependencies:** The service will be initialized with dependencies on `BeatportAPIClient`, `ExternalDataRepository`, and `DataProcessingService`.
-- **Unit of Work:** The service will be responsible for managing the database transaction (commit/rollback) for the operations it orchestrates.
+- **Class:** `CollectionService` in `app/services/collection.py`.
+- **Dependencies:** The service is initialized with `ExternalDataRepository` and `DataProcessingService`. It also makes use of `BeatportAPIClient` and `SpotifyAPIClient` to interact with external sources.
+- **Unit of Work:** The service's methods are designed to be run within a managed database session (unit of work), which is provided by the `get_collection_service` dependency factory in `app/tasks/deps.py`.
 
 ## Behavior
-- **`collect_beatport_tracks_raw(...)`**: Interacts with the `BeatportAPIClient` to fetch raw track data and uses the `ExternalDataRepository` to persist it.
-- **`process_unprocessed_beatport_tracks(...)`**: Orchestrates the processing of the collected raw Beatport data by invoking the `DataProcessingService`.
-- **`enrich_tracks_with_spotify_data(...)`**: Orchestrates the Spotify enrichment background task. It will fetch tracks missing Spotify data from the `TrackRepository`, call the `SpotifyAPIClient` to search for them by ISRC, and persist the results (both found and not-found) to the `ExternalDataRepository`.
+- **`collect_beatport_tracks_raw(...)`**: Interacts with the `BeatportAPIClient` to fetch raw track data from Beatport and uses the `ExternalDataRepository` to bulk-upsert it.
+- **`process_unprocessed_beatport_tracks(...)`**: Fetches unprocessed Beatport records in batches from `ExternalDataRepository` and orchestrates their processing by invoking the `DataProcessingService`. It reports progress via a callback.
+- **`enrich_tracks_with_spotify_data(...)`**: Fetches internal tracks that have an ISRC but are missing a Spotify data link. It uses the `SpotifyAPIClient` to search for them by ISRC and persists the results (both found and not-found) back to the `ExternalDataRepository`. This process also runs in batches and reports progress.
 
 ## Evolution
 ### Planned
-- v1: Initial design and implementation. The service will be created and all relevant data collection logic from `collection_tasks.py` will be migrated into it. It will also include the new functionality for Spotify track data enrichment (see `TASK-2025-001`).
+—
 
 ### Historical
-—
+- v1: Initial implementation. The service was created by migrating data collection and processing logic from `collection_tasks.py`. It also includes the new functionality for enriching track data with Spotify information.

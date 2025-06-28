@@ -6,7 +6,7 @@ owner: '@team-backend'
 version: v1
 status: current
 created: 2025-06-21
-updated: 2025-06-27
+updated: 2025-06-28
 tags: [taskiq, redis, worker, async]
 depends_on: []
 referenced_by: []
@@ -18,18 +18,18 @@ This document describes the architecture for asynchronous background task proces
 - **Broker:** Redis is used as the message broker. A `ListQueueBroker` is configured in `app/broker.py` and initialized in the FastAPI application lifecycle (`app/main.py`).
 - **Worker:** A dedicated `worker` service in `docker-compose.yml` runs the Taskiq worker process via the `app/worker.py` entrypoint. It listens for tasks on the Redis queue and executes them.
 - **Tasks:** Tasks are defined in the `app/tasks/` module. The primary implemented task is `collect_bp_tracks_task` in `app/tasks/collection_tasks.py`. A new task, `enrich_spotify_data_task`, is planned to handle Spotify data enrichment.
+  - `collect_bp_tracks_task` in `app/tasks/collection_tasks.py`: Collects and processes tracks from Beatport.
+  - `enrich_spotify_data_task` in `app/tasks/collection_tasks.py`: Enriches existing tracks with data from Spotify.
 
 ## Behavior
-- The `/collect/beatport` API endpoint (`app/api/collection.py`) receives a request and calls `collect_bp_tracks_task.kiq()` to send a task message to the Redis broker.
+- API endpoints in `app/api/collection.py` (e.g., `/collect/beatport/collect`, `/collect/spotify/enrich`) call the `.kiq()` method on a task to send a message to the Redis broker.
 - The Taskiq worker, running in its own container, picks up the message from the queue.
-- The worker executes the task function with the provided arguments.
+- The worker executes the task function with the provided arguments. The tasks themselves are now thin wrappers that instantiate and call the appropriate service (e.g., `CollectionService`) to perform the business logic.
 - Results and status are stored in the Redis result backend. The status can be queried via the `/tasks/status/{task_id}` endpoint.
-- **Architectural Issue**: The `collect_bp_tracks_task` currently contains significant business logic, including direct database session management and repository instantiation. This violates the principle of thin task layers.
 
 ## Evolution
 ### Planned
-- **Refactoring**: Move all business logic out of `app/tasks/collection_tasks.py` and into the `CollectionService`. The task will be refactored to be a thin wrapper that calls this service.
-- **New Enrichment Task**: Addition of a new background task for enriching track data with Spotify information (see `TASK-2025-001`). This task will follow the new "thin task, fat service" pattern.
+—
 
 ### Historical
-- v1: Initial implementation with Redis broker, a dedicated worker service, and a data collection task that contains business logic.
+- v1: Initial implementation with Redis broker and a worker service. Later refactored to move business logic from tasks into a dedicated `CollectionService`, making tasks thin wrappers. Added the `enrich_spotify_data_task` for Spotify data enrichment.
