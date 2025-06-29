@@ -1,10 +1,15 @@
 import time
+from datetime import datetime, timedelta, timezone
+from typing import Any
 
 import httpx
 import structlog
 from fastapi import HTTPException, status
 
+from app.core.security import decrypt_data
 from app.core.settings import settings
+from app.db.models.spotify_token import SpotifyToken
+from app.repositories.spotify_token import SpotifyTokenRepository
 
 log = structlog.get_logger()
 
@@ -178,3 +183,117 @@ class SpotifyAPIClient:
 
         log.info("Fetched artists from Spotify", count=len(all_artists))
         return all_artists
+
+
+class SpotifyClientError(Exception):
+    """Base exception for Spotify client errors."""
+
+    def __init__(self, message: str, status_code: int | None = None):
+        self.message = message
+        self.status_code = status_code
+        super().__init__(self.message)
+
+
+class SpotifyUnauthorizedError(SpotifyClientError):
+    """Exception for 401 Unauthorized errors."""
+
+    def __init__(self, message: str = "Spotify API access unauthorized."):
+        super().__init__(message, status_code=401)
+
+
+class SpotifyForbiddenError(SpotifyClientError):
+    """Exception for 403 Forbidden errors."""
+
+    def __init__(
+        self, message: str = "Access to the requested Spotify resource is forbidden."
+    ):
+        super().__init__(message, status_code=403)
+
+
+class SpotifyNotFoundError(SpotifyClientError):
+    """Exception for 404 Not Found errors."""
+
+    def __init__(self, message: str = "The requested Spotify resource was not found."):
+        super().__init__(message, status_code=404)
+
+
+class UserSpotifyClient:
+    def __init__(
+        self,
+        *,
+        client: httpx.AsyncClient,
+        token_repo: SpotifyTokenRepository,
+        token_obj: SpotifyToken,
+    ):
+        self.client = client
+        self.token_repo = token_repo
+        self.token_obj = token_obj
+        self.access_token = decrypt_data(token_obj.encrypted_access_token)
+        self.refresh_token = decrypt_data(token_obj.encrypted_refresh_token)
+
+    async def _refresh_access_token(self) -> None:
+        log.info("Refreshing Spotify access token", user_id=self.token_obj.user_id)
+        data = {
+            "grant_type": "refresh_token",
+            "refresh_token": self.refresh_token,
+        }
+        try:
+            response = await self.client.post(
+                settings.SPOTIFY_TOKEN_URL,
+                data=data,
+                auth=(settings.SPOTIFY_CLIENT_ID, settings.SPOTIFY_CLIENT_SECRET),
+            )
+            response.raise_for_status()
+        except httpx.HTTPStatusError as e:
+            log.error(
+                "Failed to refresh Spotify token",
+                user_id=self.token_obj.user_id,
+                status_code=e.response.status_code,
+                response_text=e.response.text,
+            )
+            raise SpotifyUnauthorizedError("Failed to refresh Spotify token.") from e
+
+        token_data = response.json()
+        new_access_token = token_data["access_token"]
+        expires_in = token_data["expires_in"]
+        new_expires_at = datetime.now(timezone.utc) + timedelta(seconds=expires_in)
+
+        await self.token_repo.update_access_token(
+            db_token=self.token_obj,
+            new_access_token=new_access_token,
+            new_expires_at=new_expires_at,
+        )
+        self.access_token = new_access_token
+        log.info(
+            "Successfully refreshed Spotify access token",
+            user_id=self.token_obj.user_id,
+        )
+
+    async def request(self, method: str, url: str, **kwargs: Any) -> httpx.Response:
+        headers = kwargs.get("headers", {})
+        headers["Authorization"] = f"Bearer {self.access_token}"
+        kwargs["headers"] = headers
+
+        response = await self.client.request(method, url, **kwargs)
+
+        if response.status_code == 401:
+            log.warning(
+                "Received 401 from Spotify, attempting token refresh",
+                user_id=self.token_obj.user_id,
+            )
+            await self._refresh_access_token()
+            headers["Authorization"] = f"Bearer {self.access_token}"
+            kwargs["headers"] = headers
+            response = await self.client.request(method, url, **kwargs)  # retry
+
+        if response.status_code == 401:
+            raise SpotifyUnauthorizedError(
+                "Authorization failed even after token refresh."
+            )
+        if response.status_code == 403:
+            raise SpotifyForbiddenError()
+        if response.status_code == 404:
+            raise SpotifyNotFoundError()
+
+        response.raise_for_status()
+        return response

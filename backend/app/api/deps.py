@@ -6,10 +6,11 @@ from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.clients.spotify import SpotifyAPIClient
+from app.clients.spotify import SpotifyAPIClient, UserSpotifyClient
 from app.core.security import verify_token
 from app.db.models.user import User
 from app.db.session import AsyncSessionLocal
+from app.repositories.spotify_token import SpotifyTokenRepository
 from app.services.auth import AuthService
 from app.services.user import UserService
 
@@ -64,3 +65,22 @@ def get_auth_service(
 ) -> AuthService:
     """FastAPI dependency to get an instance of AuthService."""
     return AuthService(db=db, spotify_client=spotify_client)
+
+
+async def get_user_spotify_client(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> AsyncGenerator[UserSpotifyClient, None]:
+    if not current_user.spotify_token:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="User does not have a Spotify token linked.",
+        )
+
+    token_repo = SpotifyTokenRepository(db)
+    async with httpx.AsyncClient() as client:
+        yield UserSpotifyClient(
+            client=client,
+            token_repo=token_repo,
+            token_obj=current_user.spotify_token,
+        )

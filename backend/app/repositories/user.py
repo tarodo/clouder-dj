@@ -1,5 +1,6 @@
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 from app.db.models.user import User
 from app.repositories.base import BaseRepository
@@ -12,7 +13,9 @@ class UserRepository(BaseRepository[User]):
 
     async def get_by_spotify_id(self, *, spotify_id: str) -> User | None:
         result = await self.db.execute(
-            select(User).filter(User.spotify_id == spotify_id)
+            select(User)
+            .options(selectinload(User.spotify_token))
+            .filter(User.spotify_id == spotify_id)
         )
         return result.scalars().first()
 
