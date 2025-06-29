@@ -9,7 +9,11 @@ from app.clients.spotify import (
     SpotifyNotFoundError,
     UserSpotifyClient,
 )
-from app.core.exceptions import SpotifyPlaylistCreationError, StyleNotFoundError
+from app.core.exceptions import (
+    CategoryAlreadyExistsError,
+    SpotifyPlaylistCreationError,
+    StyleNotFoundError,
+)
 from app.db.models.category import Category
 from app.db.models.user import User
 from app.repositories.category import CategoryRepository
@@ -51,10 +55,18 @@ class CategoryService:
         if not style:
             raise StyleNotFoundError(style_id=style_id)
 
+        # Check for existing categories before creating any playlists
+        for cat_in in categories_in:
+            existing_category = await self.category_repo.get_by_user_style_and_name(
+                user_id=user.id, style_id=style_id, name=cat_in.name
+            )
+            if existing_category:
+                raise CategoryAlreadyExistsError(category_name=cat_in.name)
+
         created_categories: List[Category] = []
         try:
             for cat_in in categories_in:
-                playlist_name = f"{style.name} :: {cat_in.name}"
+                playlist_name = f"{style.name.upper()} :: {cat_in.name.upper()}"
                 is_public = cat_in.is_public
                 description = f"Clouder-DJ: {playlist_name} category playlist."
 

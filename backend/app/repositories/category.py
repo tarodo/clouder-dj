@@ -27,6 +27,17 @@ class CategoryRepository(BaseRepository[Category]):
         result = await self.db.execute(stmt)
         return list(result.scalars().all())
 
+    async def get_by_user_style_and_name(
+        self, *, user_id: int, style_id: int, name: str
+    ) -> Category | None:
+        stmt = select(Category).where(
+            Category.user_id == user_id,
+            Category.style_id == style_id,
+            Category.name == name,
+        )
+        result = await self.db.execute(stmt)
+        return result.scalars().first()
+
     async def create(self, *, obj_in: CategoryCreateInternal) -> Category:
         db_obj = Category(**obj_in.model_dump())
         self.db.add(db_obj)

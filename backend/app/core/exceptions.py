@@ -112,3 +112,12 @@ class SpotifyPlaylistCreationError(BaseAPIException):
 class CategoryCreationError(BaseAPIException):
     code = "CATEGORY_CREATION_FAILED"
     detail = "Failed to create one or more categories in the database."
+
+
+class CategoryAlreadyExistsError(BaseAPIException):
+    def __init__(self, category_name: str):
+        super().__init__(
+            status_code=409,
+            code="CATEGORY_ALREADY_EXISTS",
+            detail=f"Category '{category_name}' already exists for this style.",
+        )
