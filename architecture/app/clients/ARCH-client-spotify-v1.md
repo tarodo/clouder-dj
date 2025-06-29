@@ -26,7 +26,7 @@ This component is responsible for all interactions with the external Spotify API
 
 ## Evolution
 ### Planned
-—
+- A new `UserSpotifyClient` is planned to handle ongoing, user-authenticated API calls, including automatic token refreshing. See `ARCH-client-user-spotify`.
 
 ### Historical
 - v1: Initial implementation focused on user authentication (Authorization Code flow). Subsequently enhanced with server-to-server authentication (Client Credentials flow) for background processing and track search by ISRC.

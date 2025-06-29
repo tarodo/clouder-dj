@@ -13,6 +13,7 @@ from app.repositories import (
     TrackRepository,
 )
 from app.services.collection import CollectionService
+from app.services.enrichment import EnrichmentService
 from app.services.data_processing import DataProcessingService
 
 
@@ -40,11 +41,35 @@ async def get_collection_service() -> AsyncGenerator[CollectionService, None]:
             )
 
             collection_service = CollectionService(
-                db=session,
                 external_data_repo=external_data_repo,
                 data_processing_service=data_processing_service,
             )
             yield collection_service
+            await session.commit()
+        except Exception:
+            await session.rollback()
+            raise
+
+
+@asynccontextmanager
+async def get_enrichment_service() -> AsyncGenerator[EnrichmentService, None]:
+    """
+    Provides an EnrichmentService instance with a managed DB session.
+    This acts as a Unit of Work for enrichment tasks.
+    """
+    async with AsyncSessionLocal() as session:
+        try:
+            artist_repo = ArtistRepository(session)
+            track_repo = TrackRepository(session)
+            external_data_repo = ExternalDataRepository(session)
+
+            enrichment_service = EnrichmentService(
+                db=session,
+                artist_repo=artist_repo,
+                track_repo=track_repo,
+                external_data_repo=external_data_repo,
+            )
+            yield enrichment_service
             await session.commit()
         except Exception:
             await session.rollback()

@@ -5,7 +5,7 @@ import structlog
 from taskiq import Context, TaskiqDepends
 
 from app.broker import broker
-from app.tasks.deps import get_collection_service
+from app.tasks.deps import get_collection_service, get_enrichment_service
 from app.tasks.progress import update_task_progress
 
 log = structlog.get_logger(__name__)
@@ -89,6 +89,7 @@ async def collect_bp_tracks_task(
 
 @broker.task(task_name="collection.enrich_spotify_data")
 async def enrich_spotify_data_task(
+    similarity_threshold: int = 80,
     context: Context = TaskiqDepends(),
 ) -> dict[str, Any]:
     """
@@ -100,17 +101,25 @@ async def enrich_spotify_data_task(
     start_time = time.perf_counter()
 
     try:
-        async with get_collection_service() as collection_service:
+        async with get_enrichment_service() as enrichment_service:
 
             async def progress_callback(state: dict[str, Any]) -> None:
                 # AC: reported state includes total, processed, found, not_found,
                 # and errors.
                 await update_task_progress(
-                    context, start_time, "enriching", {**state, "errors": 0}
+                    context,
+                    start_time,
+                    "enriching",
+                    {
+                        **state,
+                        "errors": 0,
+                        "similarity_threshold": similarity_threshold,
+                    },
                 )
 
-            results = await collection_service.enrich_tracks_with_spotify_data(
-                progress_callback=progress_callback
+            results = await enrichment_service.enrich_tracks_with_spotify_data(
+                progress_callback=progress_callback,
+                similarity_threshold=similarity_threshold,
             )
 
     except Exception as e:
@@ -147,14 +156,14 @@ async def enrich_spotify_artist_data_task(
     start_time = time.perf_counter()
 
     try:
-        async with get_collection_service() as collection_service:
+        async with get_enrichment_service() as enrichment_service:
 
             async def progress_callback(state: dict[str, Any]) -> None:
                 await update_task_progress(
                     context, start_time, "enriching", {**state, "errors": 0}
                 )
 
-            results = await collection_service.enrich_artists_with_spotify_data(
+            results = await enrichment_service.enrich_artists_with_spotify_data(
                 progress_callback=progress_callback
             )
 

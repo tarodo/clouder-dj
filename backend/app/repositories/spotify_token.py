@@ -45,3 +45,14 @@ class SpotifyTokenRepository:
             self.db.add(db_token)
 
         return db_token
+
+    async def update_access_token(
+        self, *, db_token: SpotifyToken, new_access_token: str, new_expires_at: datetime
+    ) -> SpotifyToken:
+        """Updates the access token and expiry for a given SpotifyToken object."""
+        db_token.encrypted_access_token = encrypt_data(new_access_token)
+        db_token.expires_at = new_expires_at
+        self.db.add(db_token)
+        await self.db.flush()
+        await self.db.refresh(db_token)
+        return db_token

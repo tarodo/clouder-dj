@@ -28,9 +28,9 @@ async def run_beatport_collection_task(params: BeatportCollectionRequest):
 @router.post(
     "/spotify/enrich", status_code=202, dependencies=[Depends(get_current_user)]
 )
-async def run_spotify_enrichment_task():
+async def run_spotify_enrichment_task(similarity_threshold: int = 80):
     """Endpoint to start a Spotify enrichment task for all tracks."""
-    task = await enrich_spotify_data_task.kiq()
+    task = await enrich_spotify_data_task.kiq(similarity_threshold=similarity_threshold)
     return {"task_id": task.task_id}
 
 

@@ -5,12 +5,14 @@ from contextlib import asynccontextmanager
 import structlog
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
+from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from app.api import (
     artists,
     auth,
+    category,
     collection,
     labels,
     me,
@@ -22,18 +24,42 @@ from app.api import (
 from app.broker import broker
 from app.core.exceptions import (
     API_RESPONSES,
+    BaseAPIException,
     http_exception_handler,
     unhandled_exception_handler,
     validation_exception_handler,
 )
 from app.core.logging import setup_logging
 from app.core.settings import settings
+from app.schemas.error import ErrorResponse
 
 # Import tasks to register them
 
 setup_logging()
 
 log = structlog.get_logger()
+
+
+async def api_exception_handler(request: Request, exc: Exception) -> JSONResponse:
+    if not isinstance(exc, BaseAPIException):
+        raise exc
+
+    request_id = structlog.contextvars.get_contextvars().get("request_id", "N/A")
+    log.warning(
+        "API Error Handled",
+        error_code=exc.code,
+        error_detail=exc.detail,
+        status_code=exc.status_code,
+        path=str(request.url),
+    )
+    return JSONResponse(
+        status_code=exc.status_code,
+        content=ErrorResponse(
+            code=exc.code,
+            detail=exc.detail,
+            request_id=request_id,
+        ).model_dump(),
+    )
 
 
 @asynccontextmanager
@@ -99,7 +125,9 @@ app.include_router(tracks.router)
 app.include_router(styles.router)
 app.include_router(collection.router)
 app.include_router(tasks.router)
+app.include_router(category.router)
 
+app.add_exception_handler(BaseAPIException, api_exception_handler)
 app.add_exception_handler(StarletteHTTPException, http_exception_handler)
 app.add_exception_handler(RequestValidationError, validation_exception_handler)
 app.add_exception_handler(Exception, unhandled_exception_handler)
