@@ -1,11 +1,13 @@
 from __future__ import annotations
 
+from typing import List
+
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.models.category import Category
 from app.repositories.base import BaseRepository
-from app.schemas.category import CategoryCreate, CategoryUpdate
+from app.schemas.category import CategoryCreateInternal, CategoryUpdate
 
 
 class CategoryRepository(BaseRepository[Category]):
@@ -16,7 +18,16 @@ class CategoryRepository(BaseRepository[Category]):
         result = await self.db.execute(select(Category).filter(Category.id == id))
         return result.scalars().first()
 
-    async def create(self, *, obj_in: CategoryCreate) -> Category:
+    async def get_by_user_and_style(
+        self, *, user_id: int, style_id: int
+    ) -> List[Category]:
+        stmt = select(Category).where(
+            Category.user_id == user_id, Category.style_id == style_id
+        )
+        result = await self.db.execute(stmt)
+        return list(result.scalars().all())
+
+    async def create(self, *, obj_in: CategoryCreateInternal) -> Category:
         db_obj = Category(**obj_in.model_dump())
         self.db.add(db_obj)
         await self.db.flush()

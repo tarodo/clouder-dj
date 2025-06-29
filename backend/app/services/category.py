@@ -8,7 +8,7 @@ from app.clients.spotify import SpotifyNotFoundError, UserSpotifyClient
 from app.db.models.category import Category
 from app.db.models.user import User
 from app.repositories.category import CategoryRepository
-from app.schemas.category import CategoryCreate, CategoryUpdate
+from app.schemas.category import CategoryCreate, CategoryCreateInternal, CategoryUpdate
 
 log = structlog.get_logger()
 
@@ -22,8 +22,15 @@ class CategoryService:
         self.category_repo = category_repo
         self.spotify_client = user_spotify_client
 
+    async def get_categories_by_style(
+        self, *, user_id: int, style_id: int
+    ) -> List[Category]:
+        return await self.category_repo.get_by_user_and_style(
+            user_id=user_id, style_id=style_id
+        )
+
     async def create_categories(
-        self, *, categories_in: List[dict], user: User, style_id: int
+        self, *, categories_in: List[CategoryCreate], user: User, style_id: int
     ) -> List[Category]:
         """
         Creates categories in DB and corresponding playlists on Spotify.
@@ -33,20 +40,20 @@ class CategoryService:
         created_categories: List[Category] = []
         try:
             for cat_in in categories_in:
-                playlist_name = cat_in["name"]
-                is_public = cat_in.get("is_public", False)
+                playlist_name = cat_in.name
+                is_public = cat_in.is_public
                 description = f"Clouder-DJ: {playlist_name} category playlist."
 
                 log.info(
                     "Creating Spotify playlist",
-                    name=playlist_name,
-                    user_id=user.id,
+                    playlist_name=playlist_name,
+                    is_public=is_public,
                 )
                 playlist = await self.spotify_client.create_playlist(
                     name=playlist_name, public=is_public, description=description
                 )
 
-                category_create_schema = CategoryCreate(
+                category_create_schema = CategoryCreateInternal(
                     name=playlist_name,
                     user_id=user.id,
                     style_id=style_id,
@@ -67,14 +74,14 @@ class CategoryService:
         return created_categories
 
     async def update_category(
-        self, *, category_id: int, category_in: CategoryUpdate
+        self, *, category_id: int, category_in: CategoryUpdate, user_id: int
     ) -> Category | None:
         """
         Updates a category name in DB and on Spotify.
         If the playlist is not found on Spotify, it deletes the local category.
         """
         category = await self.category_repo.get(id=category_id)
-        if not category:
+        if not category or category.user_id != user_id:
             return None
 
         if category_in.name:
@@ -94,11 +101,11 @@ class CategoryService:
         return await self.category_repo.update(db_obj=category, obj_in=category_in)
 
     async def delete_category(
-        self, *, category_id: int, delete_on_spotify: bool
+        self, *, category_id: int, delete_on_spotify: bool, user_id: int
     ) -> Category | None:
         """Deletes a category from DB and optionally from Spotify."""
         category = await self.category_repo.get(id=category_id)
-        if not category:
+        if not category or category.user_id != user_id:
             return None
 
         if delete_on_spotify:

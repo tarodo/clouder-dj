@@ -10,8 +10,10 @@ from app.clients.spotify import SpotifyAPIClient, UserSpotifyClient
 from app.core.security import verify_token
 from app.db.models.user import User
 from app.db.session import AsyncSessionLocal
+from app.repositories.category import CategoryRepository
 from app.repositories.spotify_token import SpotifyTokenRepository
 from app.services.auth import AuthService
+from app.services.category import CategoryService
 from app.services.user import UserService
 
 log = structlog.get_logger()
@@ -85,3 +87,14 @@ async def get_user_spotify_client(
             token_obj=current_user.spotify_token,
             spotify_user_id=current_user.spotify_id,
         )
+
+
+def get_category_service(
+    db: AsyncSession = Depends(get_db),
+    user_spotify_client: UserSpotifyClient = Depends(get_user_spotify_client),
+) -> CategoryService:
+    """FastAPI dependency to get an instance of CategoryService."""
+    category_repo = CategoryRepository(db)
+    return CategoryService(
+        category_repo=category_repo, user_spotify_client=user_spotify_client
+    )

@@ -11,6 +11,7 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 from app.api import (
     artists,
     auth,
+    category,
     collection,
     labels,
     me,
@@ -99,6 +100,7 @@ app.include_router(tracks.router)
 app.include_router(styles.router)
 app.include_router(collection.router)
 app.include_router(tasks.router)
+app.include_router(category.router)
 
 app.add_exception_handler(StarletteHTTPException, http_exception_handler)
 app.add_exception_handler(RequestValidationError, validation_exception_handler)
