@@ -224,10 +224,12 @@ class UserSpotifyClient:
         client: httpx.AsyncClient,
         token_repo: SpotifyTokenRepository,
         token_obj: SpotifyToken,
+        spotify_user_id: str,
     ):
         self.client = client
         self.token_repo = token_repo
         self.token_obj = token_obj
+        self.spotify_user_id = spotify_user_id
         self.access_token = decrypt_data(token_obj.encrypted_access_token)
         self.refresh_token = decrypt_data(token_obj.encrypted_refresh_token)
 
@@ -297,3 +299,46 @@ class UserSpotifyClient:
 
         response.raise_for_status()
         return response
+
+    async def create_playlist(
+        self, *, name: str, public: bool, description: str
+    ) -> dict:
+        """Creates a new playlist for the user."""
+        log.info("Creating playlist for user", user_id=self.spotify_user_id, name=name)
+        url = f"{settings.SPOTIFY_API_URL}/users/{self.spotify_user_id}/playlists"
+        payload = {
+            "name": name,
+            "public": public,
+            "description": description,
+        }
+        response = await self.request("POST", url, json=payload)
+        playlist_data = response.json()
+        log.info(
+            "Successfully created playlist",
+            playlist_id=playlist_data.get("id"),
+            user_id=self.spotify_user_id,
+        )
+        return playlist_data
+
+    async def update_playlist_details(self, *, playlist_id: str, name: str) -> None:
+        """Updates a playlist's details."""
+        log.info("Updating playlist details", playlist_id=playlist_id, new_name=name)
+        url = f"{settings.SPOTIFY_API_URL}/playlists/{playlist_id}"
+        payload = {"name": name}
+        await self.request("PUT", url, json=payload)
+        log.info("Successfully updated playlist", playlist_id=playlist_id)
+
+    async def unfollow_playlist(self, *, playlist_id: str) -> None:
+        """Unfollows (deletes) a playlist."""
+        log.info("Unfollowing playlist", playlist_id=playlist_id)
+        url = f"{settings.SPOTIFY_API_URL}/playlists/{playlist_id}/followers"
+        try:
+            await self.request("DELETE", url)
+            log.info("Successfully unfollowed playlist", playlist_id=playlist_id)
+        except SpotifyNotFoundError:
+            log.warning(
+                "Playlist to unfollow not found on Spotify, likely already deleted.",
+                playlist_id=playlist_id,
+            )
+            # If not found, it's already "unfollowed", so we can pass.
+            pass

@@ -83,4 +83,5 @@ async def get_user_spotify_client(
             client=client,
             token_repo=token_repo,
             token_obj=current_user.spotify_token,
+            spotify_user_id=current_user.spotify_id,
         )
