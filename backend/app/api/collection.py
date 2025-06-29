@@ -19,6 +19,8 @@ router = APIRouter(prefix="/collect", tags=["collection"])
 async def run_beatport_collection_task(params: BeatportCollectionRequest):
     """Endpoint to start a Beatport collection task."""
     task = await collect_bp_tracks_task.kiq(
+        bp_token=params.bp_token,
+        style_id=params.style_id,
         date_from=params.date_from.isoformat(),
         date_to=params.date_to.isoformat(),
     )
