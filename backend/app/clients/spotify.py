@@ -272,12 +272,21 @@ class UserSpotifyClient:
         )
 
     async def request(self, method: str, url: str, **kwargs: Any) -> httpx.Response:
+        # Proactive token refresh check
+        if datetime.now(timezone.utc) >= self.token_obj.expires_at:
+            log.info(
+                "Spotify token expired, refreshing proactively",
+                user_id=self.token_obj.user_id,
+            )
+            await self._refresh_access_token()
+
         headers = kwargs.get("headers", {})
         headers["Authorization"] = f"Bearer {self.access_token}"
         kwargs["headers"] = headers
 
         response = await self.client.request(method, url, **kwargs)
 
+        # Reactive token refresh on 401
         if response.status_code == 401:
             log.warning(
                 "Received 401 from Spotify, attempting token refresh",
@@ -320,11 +329,31 @@ class UserSpotifyClient:
         )
         return playlist_data
 
-    async def update_playlist_details(self, *, playlist_id: str, name: str) -> None:
+    async def update_playlist_details(
+        self,
+        *,
+        playlist_id: str,
+        name: str | None = None,
+        description: str | None = None,
+    ) -> None:
         """Updates a playlist's details."""
-        log.info("Updating playlist details", playlist_id=playlist_id, new_name=name)
+        log.info(
+            "Updating playlist details",
+            playlist_id=playlist_id,
+            new_name=name,
+            new_description=description,
+        )
         url = f"{settings.SPOTIFY_API_URL}/playlists/{playlist_id}"
-        payload = {"name": name}
+        payload = {}
+        if name is not None:
+            payload["name"] = name
+        if description is not None:
+            payload["description"] = description
+
+        if not payload:
+            log.debug("No details to update for playlist", playlist_id=playlist_id)
+            return
+
         await self.request("PUT", url, json=payload)
         log.info("Successfully updated playlist", playlist_id=playlist_id)
 

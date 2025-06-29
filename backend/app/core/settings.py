@@ -50,6 +50,12 @@ class Settings(BaseSettings):
     SPOTIFY_SEARCH_BATCH_SIZE: int = 50
     SPOTIFY_API_ERROR_SLEEP_S: int = 5
 
+    # Curation settings
+    SPOTIFY_PLAYLIST_NAME_TEMPLATE: str = "{style_name} :: {category_name}"
+    SPOTIFY_PLAYLIST_DESCRIPTION_TEMPLATE: str = (
+        "Clouder-DJ: {playlist_name} category playlist."
+    )
+
     @property
     def database_url(self) -> str:
         """Get the database URL."""
