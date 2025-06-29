@@ -6,6 +6,7 @@ import httpx
 import structlog
 from fastapi import HTTPException, status
 
+from app.core.exceptions import BaseAPIException
 from app.core.security import decrypt_data
 from app.core.settings import settings
 from app.db.models.spotify_token import SpotifyToken
@@ -185,20 +186,19 @@ class SpotifyAPIClient:
         return all_artists
 
 
-class SpotifyClientError(Exception):
+class SpotifyClientError(BaseAPIException):
     """Base exception for Spotify client errors."""
 
-    def __init__(self, message: str, status_code: int | None = None):
-        self.message = message
-        self.status_code = status_code
-        super().__init__(self.message)
+    status_code = 502
+    code = "SPOTIFY_CLIENT_ERROR"
+    detail = "An unspecified Spotify client error occurred."
 
 
 class SpotifyUnauthorizedError(SpotifyClientError):
     """Exception for 401 Unauthorized errors."""
 
     def __init__(self, message: str = "Spotify API access unauthorized."):
-        super().__init__(message, status_code=401)
+        super().__init__(status_code=401, code="SPOTIFY_UNAUTHORIZED", detail=message)
 
 
 class SpotifyForbiddenError(SpotifyClientError):
@@ -207,14 +207,14 @@ class SpotifyForbiddenError(SpotifyClientError):
     def __init__(
         self, message: str = "Access to the requested Spotify resource is forbidden."
     ):
-        super().__init__(message, status_code=403)
+        super().__init__(status_code=403, code="SPOTIFY_FORBIDDEN", detail=message)
 
 
 class SpotifyNotFoundError(SpotifyClientError):
     """Exception for 404 Not Found errors."""
 
     def __init__(self, message: str = "The requested Spotify resource was not found."):
-        super().__init__(message, status_code=404)
+        super().__init__(status_code=404, code="SPOTIFY_NOT_FOUND", detail=message)
 
 
 class UserSpotifyClient:

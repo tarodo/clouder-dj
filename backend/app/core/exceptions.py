@@ -9,6 +9,26 @@ from typing import Any
 log = structlog.get_logger()
 
 
+class BaseAPIException(Exception):
+    status_code: int = 400
+    code: str = "UNSPECIFIED_ERROR"
+    detail: str = "An unspecified error occurred."
+
+    def __init__(
+        self,
+        status_code: int | None = None,
+        detail: str | None = None,
+        code: str | None = None,
+    ):
+        if status_code is not None:
+            self.status_code = status_code
+        if detail is not None:
+            self.detail = detail
+        if code is not None:
+            self.code = code
+        super().__init__(self.detail)
+
+
 async def http_exception_handler(request: Request, exc: Exception) -> Response:
     if isinstance(exc, StarletteHTTPException):
         log.warning(
@@ -73,3 +93,22 @@ API_RESPONSES: dict[int | str, dict[str, Any]] = {
         },
     },
 }
+
+
+class StyleNotFoundError(BaseAPIException):
+    def __init__(self, style_id: int):
+        super().__init__(
+            status_code=404,  # Override status code to 404 Not Found
+            code="STYLE_NOT_FOUND",
+            detail=f"Style with id {style_id} not found.",
+        )
+
+
+class SpotifyPlaylistCreationError(BaseAPIException):
+    code = "SPOTIFY_PLAYLIST_CREATION_FAILED"
+    detail = "Failed to create the playlist on Spotify."
+
+
+class CategoryCreationError(BaseAPIException):
+    code = "CATEGORY_CREATION_FAILED"
+    detail = "Failed to create one or more categories in the database."

@@ -4,10 +4,16 @@ from typing import List
 
 import structlog
 
-from app.clients.spotify import SpotifyNotFoundError, UserSpotifyClient
+from app.clients.spotify import (
+    SpotifyClientError,
+    SpotifyNotFoundError,
+    UserSpotifyClient,
+)
+from app.core.exceptions import SpotifyPlaylistCreationError, StyleNotFoundError
 from app.db.models.category import Category
 from app.db.models.user import User
 from app.repositories.category import CategoryRepository
+from app.repositories.style import StyleRepository
 from app.schemas.category import CategoryCreate, CategoryCreateInternal, CategoryUpdate
 
 log = structlog.get_logger()
@@ -17,9 +23,11 @@ class CategoryService:
     def __init__(
         self,
         category_repo: CategoryRepository,
+        style_repo: StyleRepository,
         user_spotify_client: UserSpotifyClient,
     ):
         self.category_repo = category_repo
+        self.style_repo = style_repo
         self.spotify_client = user_spotify_client
 
     async def get_categories_by_style(
@@ -37,10 +45,16 @@ class CategoryService:
         This is a transactional operation. A failure in any Spotify API call
         will result in a rollback of all DB changes for this operation.
         """
+        # Get style name for playlist formatting
+        style = await self.style_repo.get(id=style_id)
+        log.info("Style", style=style)
+        if not style:
+            raise StyleNotFoundError(style_id=style_id)
+
         created_categories: List[Category] = []
         try:
             for cat_in in categories_in:
-                playlist_name = cat_in.name
+                playlist_name = f"{style.name} :: {cat_in.name}"
                 is_public = cat_in.is_public
                 description = f"Clouder-DJ: {playlist_name} category playlist."
 
@@ -54,7 +68,7 @@ class CategoryService:
                 )
 
                 category_create_schema = CategoryCreateInternal(
-                    name=playlist_name,
+                    name=cat_in.name,
                     user_id=user.id,
                     style_id=style_id,
                     spotify_playlist_id=playlist["id"],
@@ -65,11 +79,13 @@ class CategoryService:
                 )
                 created_categories.append(category)
 
-        except Exception:
-            log.exception(
-                "Failed to create categories, transaction will be rolled back."
+        except SpotifyClientError as e:
+            log.error(
+                "Spotify client failed during playlist creation, "
+                "transaction will be rolled back.",
+                exc_info=e,
             )
-            raise  # Re-raise to trigger rollback in the calling context
+            raise SpotifyPlaylistCreationError() from e
 
         return created_categories
 

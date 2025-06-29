@@ -12,6 +12,7 @@ from app.db.models.user import User
 from app.db.session import AsyncSessionLocal
 from app.repositories.category import CategoryRepository
 from app.repositories.spotify_token import SpotifyTokenRepository
+from app.repositories.style import StyleRepository
 from app.services.auth import AuthService
 from app.services.category import CategoryService
 from app.services.user import UserService
@@ -95,6 +96,9 @@ def get_category_service(
 ) -> CategoryService:
     """FastAPI dependency to get an instance of CategoryService."""
     category_repo = CategoryRepository(db)
+    style_repo = StyleRepository(db)
     return CategoryService(
-        category_repo=category_repo, user_spotify_client=user_spotify_client
+        category_repo=category_repo,
+        style_repo=style_repo,
+        user_spotify_client=user_spotify_client,
     )

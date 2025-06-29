@@ -41,12 +41,13 @@ async def create_categories(
             categories_in=categories_in, user=current_user, style_id=style_id
         )
         await db.commit()
-        for category in created_categories:
-            await db.refresh(category)
-        return created_categories
     except Exception:
         await db.rollback()
         raise
+
+    for category in created_categories:
+        await db.refresh(category)
+    return created_categories
 
 
 @router.get("/styles/{style_id}/categories", response_model=List[Category])
@@ -83,11 +84,12 @@ async def update_category(
                 status_code=status.HTTP_404_NOT_FOUND, detail="Category not found"
             )
         await db.commit()
-        await db.refresh(updated_category)
-        return updated_category
     except Exception:
         await db.rollback()
         raise
+
+    await db.refresh(updated_category)
+    return updated_category
 
 
 @router.delete("/categories/{category_id}", status_code=status.HTTP_204_NO_CONTENT)
@@ -97,7 +99,7 @@ async def delete_category(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
     category_service: CategoryService = Depends(get_category_service),
-) -> None:
+):
     """
     Deletes a category from the database and optionally from Spotify.
     """
@@ -115,4 +117,3 @@ async def delete_category(
     except Exception:
         await db.rollback()
         raise
-    return None
