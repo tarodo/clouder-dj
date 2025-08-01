@@ -6,8 +6,9 @@ from fastapi import APIRouter, Depends, HTTPException, Request, status
 from fastapi.responses import JSONResponse, RedirectResponse
 
 from app.api.deps import get_auth_service
-from app.core.security import create_pkce_challenge
+from app.core import security
 from app.core.settings import settings
+from app.schemas.auth import TokenRefreshRequest, TokenRefreshResponse
 from app.services.auth import AuthService
 
 router = APIRouter(prefix="/auth", tags=["auth"])
@@ -22,7 +23,7 @@ async def login():
     log.info("Initiating Spotify login flow")
     # Generate state and PKCE challenge
     state = token_urlsafe(32)
-    code_verifier, code_challenge = create_pkce_challenge()
+    code_verifier, code_challenge = security.create_pkce_challenge()
 
     # Build authorization URL
     params = {
@@ -98,3 +99,22 @@ async def callback(
     response.delete_cookie("spotify_code_verifier")
 
     return response
+
+
+@router.post("/refresh", response_model=TokenRefreshResponse)
+async def refresh_token(request: TokenRefreshRequest):
+    """
+    Refreshes the application access token using a valid refresh token.
+    """
+    payload = security.verify_token(request.refresh_token)
+    spotify_id: str | None = payload.get("sub")
+    if not spotify_id:
+        log.warning("Could not validate credentials, 'sub' not in token payload")
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Could not validate credentials",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    new_access_token = security.create_access_token(data={"sub": spotify_id})
+    return TokenRefreshResponse(access_token=new_access_token)
