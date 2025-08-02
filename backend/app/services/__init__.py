@@ -8,6 +8,7 @@ from .release import ReleaseService
 from .track import TrackService
 from .style import StyleService
 from .user import UserService
+from .raw_layer import RawLayerService
 
 __all__ = [
     "UserService",
@@ -20,4 +21,5 @@ __all__ = [
     "ReleaseService",
     "TrackService",
     "StyleService",
+    "RawLayerService",
 ]

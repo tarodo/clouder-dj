@@ -1,3 +1,4 @@
+import asyncio
 import time
 from datetime import datetime, timedelta, timezone
 from typing import Any
@@ -232,6 +233,7 @@ class UserSpotifyClient:
         self.spotify_user_id = spotify_user_id
         self.access_token = decrypt_data(token_obj.encrypted_access_token)
         self.refresh_token = decrypt_data(token_obj.encrypted_refresh_token)
+        self._refresh_lock = asyncio.Lock()
 
     async def _refresh_access_token(self) -> None:
         log.info("Refreshing Spotify access token", user_id=self.token_obj.user_id)
@@ -272,21 +274,69 @@ class UserSpotifyClient:
         )
 
     async def request(self, method: str, url: str, **kwargs: Any) -> httpx.Response:
+        token_for_request = self.access_token
         headers = kwargs.get("headers", {})
-        headers["Authorization"] = f"Bearer {self.access_token}"
+        headers["Authorization"] = f"Bearer {token_for_request}"
         kwargs["headers"] = headers
 
-        response = await self.client.request(method, url, **kwargs)
+        # Retry logic for server errors
+        max_retries = 3
+        base_delay = 1.0
 
-        if response.status_code == 401:
-            log.warning(
-                "Received 401 from Spotify, attempting token refresh",
-                user_id=self.token_obj.user_id,
-            )
-            await self._refresh_access_token()
-            headers["Authorization"] = f"Bearer {self.access_token}"
-            kwargs["headers"] = headers
-            response = await self.client.request(method, url, **kwargs)  # retry
+        for attempt in range(max_retries + 1):
+            response = await self.client.request(method, url, **kwargs)
+
+            if response.status_code == 401:
+                log.warning(
+                    "Received 401 from Spotify, attempting token refresh",
+                    user_id=self.token_obj.user_id,
+                )
+                async with self._refresh_lock:
+                    # Re-check if token was already refreshed by another coroutine
+                    # while waiting for the lock.
+                    if self.access_token == token_for_request:
+                        log.info(
+                            "Acquired lock and token is still stale, "
+                            "proceeding with refresh",
+                            user_id=self.token_obj.user_id,
+                        )
+                        await self._refresh_access_token()
+                    else:
+                        log.info(
+                            "Acquired lock but token was already refreshed "
+                            "by another coroutine",
+                            user_id=self.token_obj.user_id,
+                        )
+
+                # Retry the request with the new token
+                headers["Authorization"] = f"Bearer {self.access_token}"
+                kwargs["headers"] = headers
+                response = await self.client.request(method, url, **kwargs)  # retry
+
+            # Check for server errors that should be retried
+            if response.status_code in [502, 503, 504]:
+                if attempt < max_retries:
+                    delay = base_delay * (2**attempt)  # exponential backoff
+                    log.warning(
+                        "Received server error from Spotify, retrying",
+                        status_code=response.status_code,
+                        attempt=attempt + 1,
+                        delay=delay,
+                        user_id=self.token_obj.user_id,
+                    )
+                    await asyncio.sleep(delay)
+                    continue
+                else:
+                    log.error(
+                        "Max retries reached for server error",
+                        status_code=response.status_code,
+                        user_id=self.token_obj.user_id,
+                    )
+                    # Let raise_for_status handle it
+                    break
+            else:
+                # Success or non-retryable error
+                break
 
         if response.status_code == 401:
             raise SpotifyUnauthorizedError(
@@ -342,3 +392,29 @@ class UserSpotifyClient:
             )
             # If not found, it's already "unfollowed", so we can pass.
             pass
+
+    async def add_items_to_playlist(
+        self, *, playlist_id: str, track_uris: list[str]
+    ) -> None:
+        """Adds items to a playlist, handling batching for more than 100 items."""
+        if not track_uris:
+            return
+
+        log.info(
+            "Adding items to playlist",
+            playlist_id=playlist_id,
+            count=len(track_uris),
+        )
+        url = f"{settings.SPOTIFY_API_URL}/playlists/{playlist_id}/tracks"
+
+        # Spotify API allows a maximum of 100 items per request
+        for i in range(0, len(track_uris), 100):
+            batch_uris = track_uris[i : i + 100]
+            payload = {"uris": batch_uris}
+            await self.request("POST", url, json=payload)
+
+        log.info(
+            "Successfully added items to playlist",
+            playlist_id=playlist_id,
+            count=len(track_uris),
+        )

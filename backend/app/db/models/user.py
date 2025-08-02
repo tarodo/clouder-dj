@@ -8,6 +8,7 @@ from app.db.models.mixins import TimestampMixin
 if TYPE_CHECKING:
     from .spotify_token import SpotifyToken
     from .category import Category
+    from .raw_layer import RawLayerBlock
 
 
 class User(Base, TimestampMixin):
@@ -25,6 +26,11 @@ class User(Base, TimestampMixin):
     )
     categories: Mapped[List["Category"]] = relationship(
         "Category",
+        back_populates="user",
+        cascade="all, delete-orphan",
+    )
+    raw_layer_blocks: Mapped[List["RawLayerBlock"]] = relationship(
+        "RawLayerBlock",
         back_populates="user",
         cascade="all, delete-orphan",
     )

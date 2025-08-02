@@ -7,6 +7,7 @@ from .spotify_token import SpotifyTokenRepository
 from .style import StyleRepository
 from .track import TrackRepository
 from .user import UserRepository
+from .raw_layer import RawLayerRepository
 
 __all__ = [
     "ArtistRepository",
@@ -18,4 +19,5 @@ __all__ = [
     "StyleRepository",
     "TrackRepository",
     "UserRepository",
+    "RawLayerRepository",
 ]

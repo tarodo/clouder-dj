@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, List
+from typing import TYPE_CHECKING, List, Optional
 
 from sqlalchemy import ForeignKey, Integer, String, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -18,9 +18,11 @@ class Release(Base, TimestampMixin):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
     name: Mapped[str] = mapped_column(String, index=True, nullable=False)
-    label_id: Mapped[int | None] = mapped_column(ForeignKey("labels.id"), nullable=True)
+    label_id: Mapped[Optional[int]] = mapped_column(
+        ForeignKey("labels.id"), nullable=True
+    )
 
-    label: Mapped[Label | None] = relationship("Label", back_populates="releases")
+    label: Mapped[Optional["Label"]] = relationship("Label", back_populates="releases")
     tracks: Mapped[List["Track"]] = relationship("Track", back_populates="release")
 
     __table_args__ = (

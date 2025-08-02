@@ -20,6 +20,7 @@ from app.api import (
     styles,
     tasks,
     tracks,
+    raw_layer,
 )
 from app.broker import broker
 from app.core.exceptions import (
@@ -126,6 +127,7 @@ app.include_router(styles.router)
 app.include_router(collection.router)
 app.include_router(tasks.router)
 app.include_router(category.router)
+app.include_router(raw_layer.router)
 
 app.add_exception_handler(BaseAPIException, api_exception_handler)
 app.add_exception_handler(StarletteHTTPException, http_exception_handler)

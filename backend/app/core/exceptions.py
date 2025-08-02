@@ -121,3 +121,12 @@ class CategoryAlreadyExistsError(BaseAPIException):
             code="CATEGORY_ALREADY_EXISTS",
             detail=f"Category '{category_name}' already exists for this style.",
         )
+
+
+class RawLayerBlockExistsError(BaseAPIException):
+    def __init__(self, block_name: str):
+        super().__init__(
+            status_code=409,
+            code="RAW_LAYER_BLOCK_ALREADY_EXISTS",
+            detail=f"Raw layer block '{block_name}' already exists for this style.",
+        )

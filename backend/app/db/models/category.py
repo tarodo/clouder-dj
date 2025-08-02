@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, List
 
 from sqlalchemy import ForeignKey, Integer, String, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -11,6 +11,7 @@ from app.db.models.mixins import TimestampMixin
 if TYPE_CHECKING:
     from .user import User
     from .style import Style
+    from .raw_layer import RawLayerPlaylist
 
 
 class Category(Base, TimestampMixin):
@@ -28,6 +29,9 @@ class Category(Base, TimestampMixin):
 
     user: Mapped["User"] = relationship(back_populates="categories")
     style: Mapped["Style"] = relationship(back_populates="categories")
+    raw_layer_playlists: Mapped[List["RawLayerPlaylist"]] = relationship(
+        "RawLayerPlaylist", back_populates="category"
+    )
 
     __table_args__ = (
         UniqueConstraint(

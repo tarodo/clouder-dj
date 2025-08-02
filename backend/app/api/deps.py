@@ -16,6 +16,7 @@ from app.repositories.style import StyleRepository
 from app.services.auth import AuthService
 from app.services.category import CategoryService
 from app.services.user import UserService
+from app.services.raw_layer import RawLayerService
 
 log = structlog.get_logger()
 
@@ -100,5 +101,16 @@ def get_category_service(
     return CategoryService(
         category_repo=category_repo,
         style_repo=style_repo,
+        user_spotify_client=user_spotify_client,
+    )
+
+
+def get_raw_layer_service(
+    db: AsyncSession = Depends(get_db),
+    user_spotify_client: UserSpotifyClient = Depends(get_user_spotify_client),
+) -> RawLayerService:
+    """FastAPI dependency to get an instance of RawLayerService."""
+    return RawLayerService(
+        db=db,
         user_spotify_client=user_spotify_client,
     )
