@@ -1,11 +1,11 @@
 from __future__ import annotations
 
 from datetime import date
-from typing import Dict, List
+from typing import List
 
 from sqlalchemy import and_, select
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import aliased
+from sqlalchemy.orm import aliased, selectinload
 
 from app.db.models.external_data import (
     ExternalData,
@@ -75,29 +75,13 @@ class RawLayerRepository(BaseRepository[RawLayerBlock]):
             .subquery()
         )
 
-        # Now, fetch the full Track objects and all their associated ExternalData
+        # Now, fetch the full Track objects with eager-loaded external_data
         # to prevent N+1 queries in the service layer.
         stmt = (
-            select(Track, ExternalData)
-            .join(
-                ExternalData,
-                and_(
-                    ExternalData.entity_id == Track.id,
-                    ExternalData.entity_type == ExternalDataEntityType.TRACK,
-                ),
-            )
+            select(Track)
+            .options(selectinload(Track.external_data))
             .where(Track.id.in_(select(track_ids_subquery)))
         )
 
         result = await self.db.execute(stmt)
-
-        # Manually construct the track list with external_data attached,
-        # following the pattern used elsewhere in the codebase.
-        track_map: Dict[int, Track] = {}
-        for track, ext_data in result.all():
-            if track.id not in track_map:
-                track.external_data = []  # type: ignore
-                track_map[track.id] = track
-            track_map[track.id].external_data.append(ext_data)  # type: ignore
-
-        return list(track_map.values())
+        return list(result.scalars().unique().all())

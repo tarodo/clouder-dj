@@ -7,7 +7,8 @@ from typing import Any, Dict, List
 import structlog
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.clients.spotify import SpotifyClientError, UserSpotifyClient
+from app.clients.spotify import UserSpotifyClient
+from app.core.constants import VALID_SPOTIFY_ALBUM_TYPES
 from app.core.exceptions import RawLayerBlockExistsError, StyleNotFoundError
 from app.db.models import Category, RawLayerBlock, Style, Track, User
 from app.db.models.external_data import ExternalDataProvider
@@ -130,7 +131,7 @@ class RawLayerService:
                 log.warning("Could not parse release date", date=release_date_str)
                 continue
 
-            if album_type not in ["album", "single", "compilation"]:
+            if album_type not in VALID_SPOTIFY_ALBUM_TYPES:
                 categorized_uris[RawLayerPlaylistType.INBOX_NOT].append(spotify_uri)
             elif release_date >= start_date:
                 categorized_uris[RawLayerPlaylistType.INBOX_NEW].append(spotify_uri)
@@ -165,78 +166,66 @@ class RawLayerService:
         )
         log.info("Selected tracks", count=len(selected_tracks))
 
-        try:
-            # 3. Create playlists on Spotify API
-            log.info("Creating Spotify playlists", name=block_in.block_name)
-            db_playlists_data = await self._create_spotify_playlists(
-                block_name=block_in.block_name,
-                style=style,
-                target_categories=target_categories,
-            )
+        # 3. Create playlists on Spotify API
+        log.info("Creating Spotify playlists", name=block_in.block_name)
+        db_playlists_data = await self._create_spotify_playlists(
+            block_name=block_in.block_name,
+            style=style,
+            target_categories=target_categories,
+        )
 
-            # 4. Create DB records for block & playlists
-            log.info("Creating DB records", name=block_in.block_name)
-            db_block = RawLayerBlock(
-                name=block_in.block_name,
-                user_id=user.id,
-                style_id=style.id,
-                start_date=block_in.start_date,
-                end_date=block_in.end_date,
-                tracks=selected_tracks,
-            )
-            for p_data in db_playlists_data:
-                db_block.playlists.append(RawLayerPlaylist(**p_data))
+        # 4. Create DB records for block & playlists
+        log.info("Creating DB records", name=block_in.block_name)
+        db_block = RawLayerBlock(
+            name=block_in.block_name,
+            user_id=user.id,
+            style_id=style.id,
+            start_date=block_in.start_date,
+            end_date=block_in.end_date,
+            tracks=selected_tracks,
+        )
+        for p_data in db_playlists_data:
+            db_block.playlists.append(RawLayerPlaylist(**p_data))
 
-            self.db.add(db_block)
-            await self.db.flush()
+        self.db.add(db_block)
+        await self.db.flush()
 
-            # 5. Categorize & add tracks to Spotify playlists
-            log.info(
-                "Categorizing and adding tracks to playlists", name=block_in.block_name
-            )
-            categorized_uris = self._categorize_tracks(
-                selected_tracks, block_in.start_date
-            )
+        # 5. Categorize & add tracks to Spotify playlists
+        log.info(
+            "Categorizing and adding tracks to playlists", name=block_in.block_name
+        )
+        categorized_uris = self._categorize_tracks(selected_tracks, block_in.start_date)
 
-            playlist_map = {
-                p.playlist_type: p.spotify_playlist_id for p in db_block.playlists
-            }
-            add_track_tasks = []
-            for p_type, uris in categorized_uris.items():
-                if uris and p_type in playlist_map:
-                    task = self.spotify_client.add_items_to_playlist(
-                        playlist_id=playlist_map[p_type], track_uris=uris
-                    )
-                    add_track_tasks.append(task)
-
-            if add_track_tasks:
-                await asyncio.gather(*add_track_tasks)
-
-            # Load all data before commit to avoid lazy loading after session closes
-            block_id = db_block.id
-            block_name = db_block.name
-            block_start_date = db_block.start_date
-            block_end_date = db_block.end_date
-            # Load all playlist attributes to avoid lazy loading
-            block_playlists = []
-            for playlist in db_block.playlists:
-                block_playlists.append(
-                    RawLayerPlaylistResponse(
-                        playlist_type=playlist.playlist_type,
-                        spotify_playlist_id=playlist.spotify_playlist_id,
-                        spotify_playlist_url=playlist.spotify_playlist_url,
-                        category_id=playlist.category_id,
-                    )
+        playlist_map = {
+            p.playlist_type: p.spotify_playlist_id for p in db_block.playlists
+        }
+        add_track_tasks = []
+        for p_type, uris in categorized_uris.items():
+            if uris and p_type in playlist_map:
+                task = self.spotify_client.add_items_to_playlist(
+                    playlist_id=playlist_map[p_type], track_uris=uris
                 )
+                add_track_tasks.append(task)
 
-            await self.db.commit()
+        if add_track_tasks:
+            await asyncio.gather(*add_track_tasks)
 
-        except (SpotifyClientError, Exception) as e:
-            log.error("Error creating raw layer block, rolling back", exc_info=e)
-            await self.db.rollback()
-            # Here we should ideally also delete the created Spotify playlists
-            # but for MVP, we'll leave them.
-            raise
+        # Load all data before commit to avoid lazy loading after session closes
+        block_id = db_block.id
+        block_name = db_block.name
+        block_start_date = db_block.start_date
+        block_end_date = db_block.end_date
+        # Load all playlist attributes to avoid lazy loading
+        block_playlists = []
+        for playlist in db_block.playlists:
+            block_playlists.append(
+                RawLayerPlaylistResponse(
+                    playlist_type=playlist.playlist_type,
+                    spotify_playlist_id=playlist.spotify_playlist_id,
+                    spotify_playlist_url=playlist.spotify_playlist_url,
+                    category_id=playlist.category_id,
+                )
+            )
 
         return RawLayerBlockResponse(
             id=block_id,

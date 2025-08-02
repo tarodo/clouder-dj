@@ -14,6 +14,7 @@ from app.db.models.external_data import (
 )
 from app.db.models.track import Track, track_artists
 from app.repositories.base import BaseRepository
+from app.schemas.track import TrackWithSpotifyData
 
 
 class TrackRepository(BaseRepository[Track]):
@@ -143,10 +144,10 @@ class TrackRepository(BaseRepository[Track]):
 
     async def get_tracks_by_artist_ids_with_spotify_data(
         self, *, artist_ids: List[int]
-    ) -> List[Track]:
+    ) -> List[TrackWithSpotifyData]:
         """
         Gets tracks for a given list of artist IDs that have a Spotify data link.
-        Preloads artists and attaches the relevant external_data record.
+        Returns a list of Pydantic models with track and Spotify data.
         """
         if not artist_ids:
             return []
@@ -170,13 +171,14 @@ class TrackRepository(BaseRepository[Track]):
 
         result = await self.db.execute(stmt)
 
-        track_map: Dict[int, Track] = {}
+        track_map: Dict[int, dict] = {}
         for track, ext_data in result.unique().all():
             if track.id not in track_map:
-                # NOTE: Monkey-patching external_data onto the Track object.
-                # The service layer will need to be aware of this.
-                track.external_data = []  # type: ignore
-                track_map[track.id] = track
-            track_map[track.id].external_data.append(ext_data)  # type: ignore
+                track_map[track.id] = {
+                    "id": track.id,
+                    "artists": track.artists,
+                    "external_data": [],
+                }
+            track_map[track.id]["external_data"].append(ext_data)
 
-        return list(track_map.values())
+        return [TrackWithSpotifyData.model_validate(t) for t in track_map.values()]

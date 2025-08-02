@@ -1,6 +1,7 @@
 import asyncio
 import time
 from datetime import datetime, timedelta, timezone
+from http import HTTPStatus
 from typing import Any
 
 import httpx
@@ -71,7 +72,7 @@ class SpotifyAPIClient:
         token_response = await self.client.post(
             settings.SPOTIFY_TOKEN_URL, data=token_data
         )
-        if token_response.status_code != 200:
+        if token_response.status_code != HTTPStatus.OK:
             log.error(
                 "Failed to get access token from Spotify",
                 status_code=token_response.status_code,
@@ -90,7 +91,7 @@ class SpotifyAPIClient:
         profile_response = await self.client.get(
             f"{settings.SPOTIFY_API_URL}/me", headers=headers
         )
-        if profile_response.status_code != 200:
+        if profile_response.status_code != HTTPStatus.OK:
             log.error(
                 "Failed to get user profile from Spotify",
                 status_code=profile_response.status_code,
@@ -190,7 +191,7 @@ class SpotifyAPIClient:
 class SpotifyClientError(BaseAPIException):
     """Base exception for Spotify client errors."""
 
-    status_code = 502
+    status_code = HTTPStatus.BAD_GATEWAY
     code = "SPOTIFY_CLIENT_ERROR"
     detail = "An unspecified Spotify client error occurred."
 
@@ -199,7 +200,11 @@ class SpotifyUnauthorizedError(SpotifyClientError):
     """Exception for 401 Unauthorized errors."""
 
     def __init__(self, message: str = "Spotify API access unauthorized."):
-        super().__init__(status_code=401, code="SPOTIFY_UNAUTHORIZED", detail=message)
+        super().__init__(
+            status_code=HTTPStatus.UNAUTHORIZED,
+            code="SPOTIFY_UNAUTHORIZED",
+            detail=message,
+        )
 
 
 class SpotifyForbiddenError(SpotifyClientError):
@@ -208,14 +213,18 @@ class SpotifyForbiddenError(SpotifyClientError):
     def __init__(
         self, message: str = "Access to the requested Spotify resource is forbidden."
     ):
-        super().__init__(status_code=403, code="SPOTIFY_FORBIDDEN", detail=message)
+        super().__init__(
+            status_code=HTTPStatus.FORBIDDEN, code="SPOTIFY_FORBIDDEN", detail=message
+        )
 
 
 class SpotifyNotFoundError(SpotifyClientError):
     """Exception for 404 Not Found errors."""
 
     def __init__(self, message: str = "The requested Spotify resource was not found."):
-        super().__init__(status_code=404, code="SPOTIFY_NOT_FOUND", detail=message)
+        super().__init__(
+            status_code=HTTPStatus.NOT_FOUND, code="SPOTIFY_NOT_FOUND", detail=message
+        )
 
 
 class UserSpotifyClient:
@@ -286,7 +295,7 @@ class UserSpotifyClient:
         for attempt in range(max_retries + 1):
             response = await self.client.request(method, url, **kwargs)
 
-            if response.status_code == 401:
+            if response.status_code == HTTPStatus.UNAUTHORIZED:
                 log.warning(
                     "Received 401 from Spotify, attempting token refresh",
                     user_id=self.token_obj.user_id,
@@ -314,7 +323,11 @@ class UserSpotifyClient:
                 response = await self.client.request(method, url, **kwargs)  # retry
 
             # Check for server errors that should be retried
-            if response.status_code in [502, 503, 504]:
+            if response.status_code in [
+                HTTPStatus.BAD_GATEWAY,
+                HTTPStatus.SERVICE_UNAVAILABLE,
+                HTTPStatus.GATEWAY_TIMEOUT,
+            ]:
                 if attempt < max_retries:
                     delay = base_delay * (2**attempt)  # exponential backoff
                     log.warning(
@@ -338,13 +351,13 @@ class UserSpotifyClient:
                 # Success or non-retryable error
                 break
 
-        if response.status_code == 401:
+        if response.status_code == HTTPStatus.UNAUTHORIZED:
             raise SpotifyUnauthorizedError(
                 "Authorization failed even after token refresh."
             )
-        if response.status_code == 403:
+        if response.status_code == HTTPStatus.FORBIDDEN:
             raise SpotifyForbiddenError()
-        if response.status_code == 404:
+        if response.status_code == HTTPStatus.NOT_FOUND:
             raise SpotifyNotFoundError()
 
         response.raise_for_status()

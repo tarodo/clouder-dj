@@ -9,8 +9,12 @@ from rapidfuzz import fuzz, process
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.clients.spotify import SpotifyAPIClient
+from app.core.constants import (
+    ARTIST_FUZZY_MATCH_THRESHOLD,
+    SPOTIFY_NOT_FOUND_PREFIX,
+)
 from app.core.settings import settings
-from app.db.models.artist import Artist
+from app.db.models.artist import Artist as ArtistModel
 from app.db.models.external_data import (
     ExternalDataEntityType,
     ExternalDataProvider,
@@ -21,6 +25,7 @@ from app.repositories import (
     ExternalDataRepository,
     TrackRepository,
 )
+from app.schemas.track import TrackWithSpotifyData
 
 log = structlog.get_logger(__name__)
 
@@ -149,7 +154,9 @@ class EnrichmentService:
                                 "provider": ExternalDataProvider.SPOTIFY,
                                 "entity_type": ExternalDataEntityType.TRACK,
                                 "entity_id": track.id,
-                                "external_id": f"NOT_FOUND_{track.id}_{uuid.uuid4()}",
+                                "external_id": (
+                                    f"{SPOTIFY_NOT_FOUND_PREFIX}{track.id}_{uuid.uuid4()}"
+                                ),
                                 "raw_data": {"status": "not_found_by_isrc"},
                             }
                         )
@@ -181,17 +188,18 @@ class EnrichmentService:
         }
 
     def _get_spotify_artist_candidates(
-        self, artist: Artist, artist_id_to_tracks: Dict[int, List[Track]]
+        self,
+        artist: ArtistModel,
+        artist_id_to_tracks: Dict[int, List[TrackWithSpotifyData]],
     ) -> Dict[str, str]:
         """Collects potential Spotify artist candidates from an artist's tracks."""
         candidates: Dict[str, str] = {}
         for track in artist_id_to_tracks.get(artist.id, []):
-            if hasattr(track, "external_data"):
-                for ext_data in track.external_data:  # type: ignore
-                    if ext_data.raw_data:
-                        for sp_artist in ext_data.raw_data.get("artists", []):
-                            if sp_artist.get("id") and sp_artist.get("name"):
-                                candidates[sp_artist["id"]] = sp_artist["name"]
+            for ext_data in track.external_data:
+                if ext_data.raw_data:
+                    for sp_artist in ext_data.raw_data.get("artists", []):
+                        if sp_artist.get("id") and sp_artist.get("name"):
+                            candidates[sp_artist["id"]] = sp_artist["name"]
         return candidates
 
     def _find_best_match_artist(
@@ -205,7 +213,7 @@ class EnrichmentService:
             artist_name,
             list(candidates.values()),
             scorer=fuzz.ratio,
-            score_cutoff=85,
+            score_cutoff=ARTIST_FUZZY_MATCH_THRESHOLD,
         )
 
         if best_match:
@@ -243,6 +251,7 @@ class EnrichmentService:
             spotify_client = SpotifyAPIClient(client=http_client)
 
             while True:
+                artists: List[ArtistModel]
                 artists, total = (
                     await self.artist_repo.get_artists_missing_spotify_link(
                         offset=0, limit=settings.SPOTIFY_SEARCH_BATCH_SIZE
@@ -271,7 +280,7 @@ class EnrichmentService:
                     )
                 )
 
-                artist_id_to_tracks: Dict[int, List[Track]] = {
+                artist_id_to_tracks: Dict[int, List[TrackWithSpotifyData]] = {
                     aid: [] for aid in artist_ids
                 }
                 for track in tracks:
@@ -280,14 +289,14 @@ class EnrichmentService:
                             artist_id_to_tracks[artist.id].append(track)
 
                 artist_match_results: Dict[int, str | None] = {}
-                for artist in artists:
+                for db_artist in artists:
                     candidates = self._get_spotify_artist_candidates(
-                        artist, artist_id_to_tracks
+                        db_artist, artist_id_to_tracks
                     )
                     best_match_id = self._find_best_match_artist(
-                        artist.name, candidates
+                        db_artist.name, candidates
                     )
-                    artist_match_results[artist.id] = best_match_id
+                    artist_match_results[db_artist.id] = best_match_id
 
                 matched_ids = [
                     sid for sid in artist_match_results.values() if sid is not None
@@ -297,15 +306,15 @@ class EnrichmentService:
                 )
 
                 records_to_upsert: List[Dict[str, Any]] = []
-                for artist in artists:
-                    spotify_id = artist_match_results.get(artist.id)
+                for db_artist in artists:
+                    spotify_id = artist_match_results.get(db_artist.id)
                     if spotify_id and spotify_id in spotify_details:
                         found_count += 1
                         records_to_upsert.append(
                             {
                                 "provider": ExternalDataProvider.SPOTIFY,
                                 "entity_type": ExternalDataEntityType.ARTIST,
-                                "entity_id": artist.id,
+                                "entity_id": db_artist.id,
                                 "external_id": spotify_id,
                                 "raw_data": spotify_details[spotify_id],
                             }
@@ -316,8 +325,10 @@ class EnrichmentService:
                             {
                                 "provider": ExternalDataProvider.SPOTIFY,
                                 "entity_type": ExternalDataEntityType.ARTIST,
-                                "entity_id": artist.id,
-                                "external_id": f"NOT_FOUND_{artist.id}_{uuid.uuid4()}",
+                                "entity_id": db_artist.id,
+                                "external_id": (
+                                    f"{SPOTIFY_NOT_FOUND_PREFIX}{db_artist.id}_{uuid.uuid4()}"
+                                ),
                                 "raw_data": {"status": "not_found_by_fuzzy_match"},
                             }
                         )

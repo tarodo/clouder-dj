@@ -1,4 +1,5 @@
 import structlog
+from http import HTTPStatus
 from fastapi import Request, status
 from fastapi.encoders import jsonable_encoder
 from fastapi.exceptions import RequestValidationError
@@ -10,7 +11,7 @@ log = structlog.get_logger()
 
 
 class BaseAPIException(Exception):
-    status_code: int = 400
+    status_code: int = HTTPStatus.BAD_REQUEST
     code: str = "UNSPECIFIED_ERROR"
     detail: str = "An unspecified error occurred."
 
@@ -98,7 +99,7 @@ API_RESPONSES: dict[int | str, dict[str, Any]] = {
 class StyleNotFoundError(BaseAPIException):
     def __init__(self, style_id: int):
         super().__init__(
-            status_code=404,  # Override status code to 404 Not Found
+            status_code=HTTPStatus.NOT_FOUND,  # Override status code to 404 Not Found
             code="STYLE_NOT_FOUND",
             detail=f"Style with id {style_id} not found.",
         )
@@ -117,7 +118,7 @@ class CategoryCreationError(BaseAPIException):
 class CategoryAlreadyExistsError(BaseAPIException):
     def __init__(self, category_name: str):
         super().__init__(
-            status_code=409,
+            status_code=HTTPStatus.CONFLICT,
             code="CATEGORY_ALREADY_EXISTS",
             detail=f"Category '{category_name}' already exists for this style.",
         )
@@ -126,7 +127,7 @@ class CategoryAlreadyExistsError(BaseAPIException):
 class RawLayerBlockExistsError(BaseAPIException):
     def __init__(self, block_name: str):
         super().__init__(
-            status_code=409,
+            status_code=HTTPStatus.CONFLICT,
             code="RAW_LAYER_BLOCK_ALREADY_EXISTS",
             detail=f"Raw layer block '{block_name}' already exists for this style.",
         )

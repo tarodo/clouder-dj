@@ -5,9 +5,11 @@ import structlog
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from fastapi.responses import JSONResponse, RedirectResponse
 
-from app.api.deps import get_auth_service
+from app.api.deps import get_spotify_api_client, get_uow
+from app.clients.spotify import SpotifyAPIClient
 from app.core import security
 from app.core.settings import settings
+from app.db.uow import AbstractUnitOfWork
 from app.schemas.auth import TokenRefreshRequest, TokenRefreshResponse
 from app.services.auth import AuthService
 
@@ -62,7 +64,8 @@ async def callback(
     code: str,
     state: str,
     request: Request,
-    auth_service: AuthService = Depends(get_auth_service),
+    uow: AbstractUnitOfWork = Depends(get_uow),
+    spotify_client: SpotifyAPIClient = Depends(get_spotify_api_client),
 ):
     """
     Exchanges the authorization code for an access token and fetches user profile.
@@ -91,6 +94,7 @@ async def callback(
             detail="Code verifier not found",
         )
 
+    auth_service = AuthService(db=uow.session, spotify_client=spotify_client)
     tokens = await auth_service.handle_spotify_callback(
         code=code, code_verifier=code_verifier
     )
