@@ -1,12 +1,13 @@
 from __future__ import annotations
 
 from datetime import date
-from typing import List
+from typing import List, Tuple
 
-from sqlalchemy import and_, select
+from sqlalchemy import and_, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import aliased, selectinload
 
+from app.api.pagination import PaginationParams
 from app.db.models.external_data import (
     ExternalData,
     ExternalDataEntityType,
@@ -85,3 +86,46 @@ class RawLayerRepository(BaseRepository[RawLayerBlock]):
 
         result = await self.db.execute(stmt)
         return list(result.scalars().unique().all())
+
+    async def get_paginated_by_user_and_style(
+        self, *, user_id: int, style_id: int, params: PaginationParams
+    ) -> Tuple[List[RawLayerBlock], int]:
+        offset = (params.page - 1) * params.per_page
+
+        base_query = select(self.model).where(
+            self.model.user_id == user_id, self.model.style_id == style_id
+        )
+
+        total_query = select(func.count()).select_from(base_query.subquery())
+        total_result = await self.db.execute(total_query)
+        total = total_result.scalar_one()
+
+        if total == 0:
+            return [], 0
+
+        items_query = (
+            base_query.options(
+                selectinload(self.model.tracks), selectinload(self.model.playlists)
+            )
+            .order_by(self.model.id.desc())
+            .offset(offset)
+            .limit(params.per_page)
+        )
+        items_result = await self.db.execute(items_query)
+        items = list(items_result.scalars().unique().all())
+
+        return items, total
+
+    async def get_by_id_for_user(
+        self, *, block_id: int, user_id: int
+    ) -> RawLayerBlock | None:
+        stmt = (
+            select(RawLayerBlock)
+            .options(
+                selectinload(RawLayerBlock.playlists),
+                selectinload(RawLayerBlock.tracks),
+            )
+            .where(RawLayerBlock.id == block_id, RawLayerBlock.user_id == user_id)
+        )
+        result = await self.db.execute(stmt)
+        return result.scalars().first()

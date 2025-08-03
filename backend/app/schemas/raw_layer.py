@@ -9,7 +9,6 @@ from app.db.models.raw_layer import RawLayerPlaylistType
 
 
 class RawLayerBlockCreate(BaseModel):
-    style_id: int
     block_name: str
     start_date: date
     end_date: date
@@ -33,5 +32,16 @@ class RawLayerBlockResponse(BaseModel):
     end_date: date
     playlists: List[RawLayerPlaylistResponse]
     track_count: int
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class RawLayerBlockSummary(BaseModel):
+    id: int
+    name: str
+    start_date: date
+    end_date: date
+    track_count: int
+    playlist_count: int
 
     model_config = ConfigDict(from_attributes=True)

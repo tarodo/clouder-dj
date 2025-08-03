@@ -7,6 +7,7 @@ from typing import Any, Dict, List
 import structlog
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.api.pagination import PaginatedResponse, PaginationParams
 from app.clients.spotify import UserSpotifyClient
 from app.core.constants import VALID_SPOTIFY_ALBUM_TYPES
 from app.core.exceptions import RawLayerBlockExistsError, StyleNotFoundError
@@ -20,6 +21,7 @@ from app.schemas.raw_layer import (
     RawLayerBlockCreate,
     RawLayerBlockResponse,
     RawLayerPlaylistResponse,
+    RawLayerBlockSummary,
 )
 
 log = structlog.get_logger()
@@ -141,12 +143,12 @@ class RawLayerService:
         return categorized_uris
 
     async def create_raw_layer_block(
-        self, *, block_in: RawLayerBlockCreate, user: User
+        self, *, style_id: int, block_in: RawLayerBlockCreate, user: User
     ) -> RawLayerBlockResponse:
         # 1. Validate input
-        style = await self.style_repo.get(id=block_in.style_id)
+        style = await self.style_repo.get(id=style_id)
         if not style:
-            raise StyleNotFoundError(style_id=block_in.style_id)
+            raise StyleNotFoundError(style_id=style_id)
 
         existing_block = await self.raw_layer_repo.get_by_user_style_and_name(
             user_id=user.id, style_id=style.id, name=block_in.block_name
@@ -234,4 +236,49 @@ class RawLayerService:
             end_date=block_end_date,
             playlists=block_playlists,
             track_count=len(selected_tracks),
+        )
+
+    async def get_user_blocks_by_style_paginated(
+        self, *, user_id: int, style_id: int, params: PaginationParams
+    ) -> PaginatedResponse[RawLayerBlockSummary]:
+        blocks, total = await self.raw_layer_repo.get_paginated_by_user_and_style(
+            user_id=user_id, style_id=style_id, params=params
+        )
+
+        summary_items = [
+            RawLayerBlockSummary(
+                id=block.id,
+                name=block.name,
+                start_date=block.start_date,
+                end_date=block.end_date,
+                track_count=len(block.tracks),
+                playlist_count=len(block.playlists),
+            )
+            for block in blocks
+        ]
+
+        return PaginatedResponse.create(
+            items=summary_items,
+            total=total,
+            params=params,
+        )
+
+    async def get_block_by_id(
+        self, *, block_id: int, user_id: int
+    ) -> RawLayerBlockResponse | None:
+        block = await self.raw_layer_repo.get_by_id_for_user(
+            block_id=block_id, user_id=user_id
+        )
+        if not block:
+            return None
+
+        return RawLayerBlockResponse(
+            id=block.id,
+            name=block.name,
+            start_date=block.start_date,
+            end_date=block.end_date,
+            playlists=[
+                RawLayerPlaylistResponse.model_validate(p) for p in block.playlists
+            ],
+            track_count=len(block.tracks),
         )
