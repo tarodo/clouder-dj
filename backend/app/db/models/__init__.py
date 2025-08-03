@@ -11,6 +11,7 @@ from .raw_layer import (  # noqa: F401
     RawLayerBlock,
     RawLayerPlaylist,
     raw_layer_block_tracks,
+    raw_layer_playlists_tracks,
 )
 
 __all__ = [
@@ -27,4 +28,5 @@ __all__ = [
     "RawLayerBlock",
     "RawLayerPlaylist",
     "raw_layer_block_tracks",
+    "raw_layer_playlists_tracks",
 ]

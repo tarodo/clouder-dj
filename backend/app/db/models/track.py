@@ -20,7 +20,7 @@ if TYPE_CHECKING:
     from .artist import Artist
     from .external_data import ExternalData
     from .release import Release
-    from .raw_layer import RawLayerBlock
+    from .raw_layer import RawLayerBlock, RawLayerPlaylist
 
 
 track_artists = Table(
@@ -49,6 +49,11 @@ class Track(Base, TimestampMixin):
     raw_layer_blocks: Mapped[List["RawLayerBlock"]] = relationship(
         "RawLayerBlock",
         secondary="raw_layer_block_tracks",
+        back_populates="tracks",
+    )
+    raw_layer_playlists: Mapped[List["RawLayerPlaylist"]] = relationship(
+        "RawLayerPlaylist",
+        secondary="raw_layer_playlists_tracks",
         back_populates="tracks",
     )
     external_data: Mapped[List["ExternalData"]] = relationship(

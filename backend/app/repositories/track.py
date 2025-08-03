@@ -182,3 +182,32 @@ class TrackRepository(BaseRepository[Track]):
             track_map[track.id]["external_data"].append(ext_data)
 
         return [TrackWithSpotifyData.model_validate(t) for t in track_map.values()]
+
+    async def find_by_spotify_uris(self, *, uris: list[str]) -> list[Track]:
+        """
+        Finds Track records from a list of Spotify track URIs.
+        It ignores URIs that are not found in the database.
+        """
+        if not uris:
+            return []
+
+        # Spotify URIs are in the format "spotify:track:TRACK_ID"
+        # The external_id in the DB is just the TRACK_ID
+        spotify_ids = [uri.split(":")[-1] for uri in uris if uri]
+
+        if not spotify_ids:
+            return []
+
+        stmt = (
+            select(Track)
+            .join(
+                ExternalData,
+                (Track.id == ExternalData.entity_id)
+                & (ExternalData.entity_type == ExternalDataEntityType.TRACK)
+                & (ExternalData.provider == ExternalDataProvider.SPOTIFY),
+            )
+            .where(ExternalData.external_id.in_(spotify_ids))
+        )
+
+        result = await self.db.execute(stmt)
+        return list(result.scalars().unique().all())

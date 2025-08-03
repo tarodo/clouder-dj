@@ -3,6 +3,7 @@ import time
 from datetime import datetime, timedelta, timezone
 from http import HTTPStatus
 from typing import Any
+from urllib.parse import urlparse
 
 import httpx
 import structlog
@@ -60,7 +61,8 @@ class SpotifyAPIClient:
         return self._client_credentials_token
 
     async def exchange_code_for_token(self, code: str, code_verifier: str) -> dict:
-        log.info("Exchanging authorization code for token")
+        log.info("Exchanging authorization code for token", code_length=len(code))
+
         token_data = {
             "grant_type": "authorization_code",
             "code": code,
@@ -69,43 +71,78 @@ class SpotifyAPIClient:
             "code_verifier": code_verifier,
         }
 
+        start_time = time.time()
+        log.debug(
+            "Spotify token exchange request started",
+            url=settings.SPOTIFY_TOKEN_URL,
+            grant_type="authorization_code",
+        )
+
         token_response = await self.client.post(
             settings.SPOTIFY_TOKEN_URL, data=token_data
         )
+
+        duration_ms = (time.time() - start_time) * 1000
+
         if token_response.status_code != HTTPStatus.OK:
             log.error(
                 "Failed to get access token from Spotify",
                 status_code=token_response.status_code,
-                response_text=token_response.text,
+                duration_ms=round(duration_ms, 2),
+                response_headers=dict(token_response.headers),
+                response_text=token_response.text[:200],
             )
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Failed to get access token from Spotify",
             )
-        log.info("Successfully exchanged code for token")
+
+        log.info(
+            "Successfully exchanged code for token",
+            status_code=token_response.status_code,
+            duration_ms=round(duration_ms, 2),
+        )
         return token_response.json()
 
     async def get_user_profile(self, spotify_access_token: str) -> dict:
         log.info("Fetching user profile from Spotify")
+
         headers = {"Authorization": f"Bearer {spotify_access_token}"}
-        profile_response = await self.client.get(
-            f"{settings.SPOTIFY_API_URL}/me", headers=headers
+        profile_url = f"{settings.SPOTIFY_API_URL}/me"
+
+        start_time = time.time()
+        log.debug(
+            "Spotify user profile request started",
+            url=profile_url,
+            method="GET",
         )
+
+        profile_response = await self.client.get(profile_url, headers=headers)
+        duration_ms = (time.time() - start_time) * 1000
+
         if profile_response.status_code != HTTPStatus.OK:
             log.error(
                 "Failed to get user profile from Spotify",
                 status_code=profile_response.status_code,
-                response_text=profile_response.text,
+                duration_ms=round(duration_ms, 2),
+                url=profile_url,
+                response_headers=dict(profile_response.headers),
+                response_text=profile_response.text[:200],
             )
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Failed to get user profile from Spotify",
             )
+
         profile_data = profile_response.json()
         log.info(
             "Successfully fetched user profile",
+            status_code=profile_response.status_code,
+            duration_ms=round(duration_ms, 2),
             spotify_id=profile_data.get("id"),
             display_name=profile_data.get("display_name"),
+            country=profile_data.get("country"),
+            followers=profile_data.get("followers", {}).get("total"),
         )
         return profile_data
 
@@ -243,26 +280,167 @@ class UserSpotifyClient:
         self.access_token = decrypt_data(token_obj.encrypted_access_token)
         self.refresh_token = decrypt_data(token_obj.encrypted_refresh_token)
         self._refresh_lock = asyncio.Lock()
+        self._token_revoked = False
+
+        # Log token info for debugging
+        log.debug(
+            "UserSpotifyClient initialized",
+            user_id=self.token_obj.user_id,
+            spotify_user_id=self.spotify_user_id,
+            token_scope=self.token_obj.scope,
+            expires_at=(
+                self.token_obj.expires_at.isoformat()
+                if self.token_obj.expires_at
+                else None
+            ),
+        )
+
+    def _is_token_expired_or_expiring_soon(self) -> bool:
+        """Check if token is expired or will expire within 5 minutes."""
+        if not self.token_obj.expires_at:
+            return True
+
+        # Add 5 minute buffer
+        expiry_buffer = timedelta(minutes=5)
+        return datetime.now(timezone.utc) >= (self.token_obj.expires_at - expiry_buffer)
+
+    def _get_safe_url_for_logging(self, url: str) -> str:
+        """Get URL for logging, removing query params - might sensitive data."""
+        parsed = urlparse(url)
+        return f"{parsed.scheme}://{parsed.netloc}{parsed.path}"
+
+    def _get_request_context(self, method: str, url: str) -> dict[str, Any]:
+        """Get structured context for request logging."""
+        return {
+            "method": method.upper(),
+            "url": self._get_safe_url_for_logging(url),
+            "user_id": self.token_obj.user_id,
+            "spotify_user_id": self.spotify_user_id,
+        }
+
+    def _log_request_start(self, method: str, url: str) -> dict[str, Any]:
+        """Log the start of an HTTP request and return context."""
+        context = self._get_request_context(method, url)
+        log.debug("Spotify API request started", **context)
+        return context
+
+    def _log_request_success(
+        self, context: dict[str, Any], response: httpx.Response, duration_ms: float
+    ) -> None:
+        """Log successful HTTP response."""
+        content_length = len(response.content) if response.content else 0
+        log.info(
+            "Spotify API request successful",
+            **context,
+            status_code=response.status_code,
+            duration_ms=round(duration_ms, 2),
+            content_length=content_length,
+            rate_limit_remaining=response.headers.get("x-ratelimit-remaining"),
+            rate_limit_reset=response.headers.get("x-ratelimit-reset"),
+        )
+
+    def _log_request_error(
+        self,
+        context: dict[str, Any],
+        error: Exception,
+        duration_ms: float,
+        response: httpx.Response | None = None,
+    ) -> None:
+        """Log HTTP request error."""
+        error_context = {
+            **context,
+            "duration_ms": round(duration_ms, 2),
+            "error_type": type(error).__name__,
+            "error_message": str(error),
+        }
+
+        if response is not None:
+            error_context.update(
+                {
+                    "status_code": response.status_code,
+                    "response_headers": dict(response.headers),
+                    "response_text": (
+                        response.text[:500] if response.text else None
+                    ),  # Limit size
+                }
+            )
+
+        log.error("Spotify API request failed", **error_context)
 
     async def _refresh_access_token(self) -> None:
         log.info("Refreshing Spotify access token", user_id=self.token_obj.user_id)
+
         data = {
             "grant_type": "refresh_token",
             "refresh_token": self.refresh_token,
         }
+
+        start_time = time.time()
         try:
+            log.debug(
+                "Spotify token refresh request started",
+                user_id=self.token_obj.user_id,
+                url=settings.SPOTIFY_TOKEN_URL,
+            )
+
             response = await self.client.post(
                 settings.SPOTIFY_TOKEN_URL,
                 data=data,
                 auth=(settings.SPOTIFY_CLIENT_ID, settings.SPOTIFY_CLIENT_SECRET),
             )
+
+            duration_ms = (time.time() - start_time) * 1000
+
             response.raise_for_status()
+
+            log.info(
+                "Spotify token refresh successful",
+                user_id=self.token_obj.user_id,
+                status_code=response.status_code,
+                duration_ms=round(duration_ms, 2),
+            )
+
         except httpx.HTTPStatusError as e:
+            duration_ms = (time.time() - start_time) * 1000
+
+            # Check for revoked refresh token
+            error_data = {}
+            if e.response.headers.get("content-type", "").startswith(
+                "application/json"
+            ):
+                try:
+                    error_data = e.response.json()
+                except Exception:
+                    pass
+
+            if (
+                e.response.status_code == 400
+                and error_data.get("error") == "invalid_grant"
+            ):
+                log.error(
+                    "Refresh token revoked, deleting from database",
+                    user_id=self.token_obj.user_id,
+                    status_code=e.response.status_code,
+                    duration_ms=round(duration_ms, 2),
+                    error_code=error_data.get("error"),
+                    error_description=error_data.get("error_description"),
+                    response_text=e.response.text[:200],  # Limit size
+                )
+                # Delete the revoked token from database
+                await self.token_repo.delete_token(user_id=self.token_obj.user_id)
+                self._token_revoked = True
+                raise SpotifyUnauthorizedError(
+                    "Refresh token revoked. Re-authorization required."
+                ) from e
+
             log.error(
                 "Failed to refresh Spotify token",
                 user_id=self.token_obj.user_id,
                 status_code=e.response.status_code,
-                response_text=e.response.text,
+                duration_ms=round(duration_ms, 2),
+                error_type=type(e).__name__,
+                response_headers=dict(e.response.headers),
+                response_text=e.response.text[:200],  # Limit size
             )
             raise SpotifyUnauthorizedError("Failed to refresh Spotify token.") from e
 
@@ -271,97 +449,240 @@ class UserSpotifyClient:
         expires_in = token_data["expires_in"]
         new_expires_at = datetime.now(timezone.utc) + timedelta(seconds=expires_in)
 
-        await self.token_repo.update_access_token(
-            db_token=self.token_obj,
-            new_access_token=new_access_token,
-            new_expires_at=new_expires_at,
-        )
+        # Spotify may return a new refresh token
+        new_refresh_token = token_data.get("refresh_token")
+
+        if new_refresh_token:
+            log.debug(
+                "Updating both access and refresh tokens",
+                user_id=self.token_obj.user_id,
+                expires_in_seconds=expires_in,
+                has_new_refresh_token=True,
+            )
+            # Update both access and refresh tokens
+            await self.token_repo.update_tokens(
+                db_token=self.token_obj,
+                new_access_token=new_access_token,
+                new_refresh_token=new_refresh_token,
+                new_expires_at=new_expires_at,
+                scope=token_data.get("scope", self.token_obj.scope),
+            )
+            self.refresh_token = new_refresh_token
+        else:
+            log.debug(
+                "Updating access token only",
+                user_id=self.token_obj.user_id,
+                expires_in_seconds=expires_in,
+                has_new_refresh_token=False,
+            )
+            # Update only access token
+            await self.token_repo.update_access_token(
+                db_token=self.token_obj,
+                new_access_token=new_access_token,
+                new_expires_at=new_expires_at,
+            )
+
         self.access_token = new_access_token
         log.info(
             "Successfully refreshed Spotify access token",
             user_id=self.token_obj.user_id,
+            expires_at=new_expires_at.isoformat(),
+            token_scope=token_data.get("scope", self.token_obj.scope),
+            refresh_token_updated=bool(new_refresh_token),
         )
 
     async def request(self, method: str, url: str, **kwargs: Any) -> httpx.Response:
+        # Check if token is expired or will expire soon (within 5 minutes)
+        if self._is_token_expired_or_expiring_soon() and not self._token_revoked:
+            async with self._refresh_lock:
+                # If token was already revoked, don't retry
+                if self._token_revoked:
+                    raise SpotifyUnauthorizedError(
+                        "Refresh token revoked. Re-authorization required."
+                    )
+
+                # Re-check after acquiring lock
+                if self._is_token_expired_or_expiring_soon():
+                    log.info(
+                        "Token expired or expiring soon, refreshing proactively",
+                        user_id=self.token_obj.user_id,
+                    )
+                    await self._refresh_access_token()
+
         token_for_request = self.access_token
         headers = kwargs.get("headers", {})
         headers["Authorization"] = f"Bearer {token_for_request}"
         kwargs["headers"] = headers
 
+        # Setup logging context
+        log_context = self._log_request_start(method, url)
+
         # Retry logic for server errors
         max_retries = 3
         base_delay = 1.0
+        start_time = time.time()
 
         for attempt in range(max_retries + 1):
-            response = await self.client.request(method, url, **kwargs)
+            attempt_start = time.time()
 
-            if response.status_code == HTTPStatus.UNAUTHORIZED:
-                log.warning(
-                    "Received 401 from Spotify, attempting token refresh",
-                    user_id=self.token_obj.user_id,
-                )
-                async with self._refresh_lock:
-                    # Re-check if token was already refreshed by another coroutine
-                    # while waiting for the lock.
-                    if self.access_token == token_for_request:
-                        log.info(
-                            "Acquired lock and token is still stale, "
-                            "proceeding with refresh",
-                            user_id=self.token_obj.user_id,
-                        )
-                        await self._refresh_access_token()
-                    else:
-                        log.info(
-                            "Acquired lock but token was already refreshed "
-                            "by another coroutine",
-                            user_id=self.token_obj.user_id,
-                        )
+            try:
+                response = await self.client.request(method, url, **kwargs)
+                attempt_duration = (time.time() - attempt_start) * 1000
 
-                # Retry the request with the new token
-                headers["Authorization"] = f"Bearer {self.access_token}"
-                kwargs["headers"] = headers
-                response = await self.client.request(method, url, **kwargs)  # retry
-
-            # Check for server errors that should be retried
-            if response.status_code in [
-                HTTPStatus.BAD_GATEWAY,
-                HTTPStatus.SERVICE_UNAVAILABLE,
-                HTTPStatus.GATEWAY_TIMEOUT,
-            ]:
-                if attempt < max_retries:
-                    delay = base_delay * (2**attempt)  # exponential backoff
-                    log.warning(
-                        "Received server error from Spotify, retrying",
-                        status_code=response.status_code,
+                # Log attempt result
+                if attempt > 0:
+                    log.debug(
+                        "Spotify API retry attempt completed",
+                        **log_context,
                         attempt=attempt + 1,
-                        delay=delay,
-                        user_id=self.token_obj.user_id,
+                        status_code=response.status_code,
+                        duration_ms=round(attempt_duration, 2),
+                    )
+
+                if response.status_code == HTTPStatus.UNAUTHORIZED:
+                    log.warning(
+                        "Received 401 from Spotify, attempting token refresh",
+                        **log_context,
+                        attempt=attempt + 1,
+                    )
+                    async with self._refresh_lock:
+                        # If token was already revoked, don't retry
+                        if self._token_revoked:
+                            log.info(
+                                "Token already revoked, skipping refresh attempt",
+                                **log_context,
+                            )
+                            raise SpotifyUnauthorizedError(
+                                "Refresh token revoked. Re-authorization required."
+                            )
+
+                        # Re-check if token was already refreshed by another coroutine
+                        # while waiting for the lock.
+                        if self.access_token == token_for_request:
+                            log.info(
+                                "Acquired lock, proceeding with refresh",
+                                **log_context,
+                            )
+                            await self._refresh_access_token()
+                        else:
+                            log.info(
+                                "Acquired lock but token was already refreshed",
+                                **log_context,
+                            )
+
+                        # Retry the request with the new token
+                        headers["Authorization"] = f"Bearer {self.access_token}"
+                        kwargs["headers"] = headers
+
+                    # Make retry request
+                    retry_start = time.time()
+                    response = await self.client.request(method, url, **kwargs)
+                    retry_duration = (time.time() - retry_start) * 1000
+
+                    log.debug(
+                        "Spotify API token refresh retry completed",
+                        **log_context,
+                        status_code=response.status_code,
+                        duration_ms=round(retry_duration, 2),
+                    )
+
+                # Check for server errors that should be retried
+                if response.status_code in [
+                    HTTPStatus.BAD_GATEWAY,
+                    HTTPStatus.SERVICE_UNAVAILABLE,
+                    HTTPStatus.GATEWAY_TIMEOUT,
+                ]:
+                    if attempt < max_retries:
+                        delay = base_delay * (2**attempt)  # exponential backoff
+                        log.warning(
+                            "Received server error from Spotify, retrying",
+                            **log_context,
+                            status_code=response.status_code,
+                            attempt=attempt + 1,
+                            max_retries=max_retries,
+                            delay_seconds=delay,
+                            duration_ms=round(attempt_duration, 2),
+                        )
+                        await asyncio.sleep(delay)
+                        continue
+                    else:
+                        total_duration = (time.time() - start_time) * 1000
+                        log.error(
+                            "Max retries reached for server error",
+                            **log_context,
+                            status_code=response.status_code,
+                            max_retries=max_retries,
+                            total_duration_ms=round(total_duration, 2),
+                        )
+                        self._log_request_error(
+                            log_context,
+                            Exception(f"Server error after {max_retries} retries"),
+                            total_duration,
+                            response,
+                        )
+                        break
+                else:
+                    # Success or non-retryable error - break out of retry loop
+                    break
+
+            except Exception as e:
+                attempt_duration = (time.time() - attempt_start) * 1000
+
+                if attempt < max_retries and isinstance(
+                    e, (httpx.TimeoutException, httpx.ConnectError)
+                ):
+                    delay = base_delay * (2**attempt)
+                    log.warning(
+                        "Network error, retrying Spotify API request",
+                        **log_context,
+                        error_type=type(e).__name__,
+                        error_message=str(e),
+                        attempt=attempt + 1,
+                        delay_seconds=delay,
+                        duration_ms=round(attempt_duration, 2),
                     )
                     await asyncio.sleep(delay)
                     continue
                 else:
-                    log.error(
-                        "Max retries reached for server error",
-                        status_code=response.status_code,
-                        user_id=self.token_obj.user_id,
-                    )
-                    # Let raise_for_status handle it
-                    break
-            else:
-                # Success or non-retryable error
-                break
+                    total_duration = (time.time() - start_time) * 1000
+                    self._log_request_error(log_context, e, total_duration)
+                    raise
 
+        # Calculate total request duration
+        total_duration = (time.time() - start_time) * 1000
+
+        # Handle final response
         if response.status_code == HTTPStatus.UNAUTHORIZED:
+            self._log_request_error(
+                log_context,
+                Exception("Authorization failed even after token refresh"),
+                total_duration,
+                response,
+            )
             raise SpotifyUnauthorizedError(
                 "Authorization failed even after token refresh."
             )
+
         if response.status_code == HTTPStatus.FORBIDDEN:
+            self._log_request_error(
+                log_context, Exception("Access forbidden"), total_duration, response
+            )
             raise SpotifyForbiddenError()
+
         if response.status_code == HTTPStatus.NOT_FOUND:
+            self._log_request_error(
+                log_context, Exception("Resource not found"), total_duration, response
+            )
             raise SpotifyNotFoundError()
 
-        response.raise_for_status()
-        return response
+        try:
+            response.raise_for_status()
+            # Log successful request
+            self._log_request_success(log_context, response, total_duration)
+            return response
+        except httpx.HTTPStatusError as e:
+            self._log_request_error(log_context, e, total_duration, response)
+            raise
 
     async def create_playlist(
         self, *, name: str, public: bool, description: str
@@ -376,10 +697,19 @@ class UserSpotifyClient:
         }
         response = await self.request("POST", url, json=payload)
         playlist_data = response.json()
+
+        # Log detailed playlist info for debugging
         log.info(
             "Successfully created playlist",
             playlist_id=playlist_data.get("id"),
-            user_id=self.spotify_user_id,
+            playlist_name=playlist_data.get("name"),
+            is_public=playlist_data.get("public"),
+            owner_id=playlist_data.get("owner", {}).get("id"),
+            expected_owner=self.spotify_user_id,
+            owner_match=playlist_data.get("owner", {}).get("id")
+            == self.spotify_user_id,
+            collaborative=playlist_data.get("collaborative"),
+            followers_total=playlist_data.get("followers", {}).get("total", 0),
         )
         return playlist_data
 
@@ -417,17 +747,97 @@ class UserSpotifyClient:
             "Adding items to playlist",
             playlist_id=playlist_id,
             count=len(track_uris),
+            user_id=self.spotify_user_id,
         )
         url = f"{settings.SPOTIFY_API_URL}/playlists/{playlist_id}/tracks"
 
         # Spotify API allows a maximum of 100 items per request
         for i in range(0, len(track_uris), 100):
             batch_uris = track_uris[i : i + 100]
+            batch_start = i + 1
+            batch_end = min(i + 100, len(track_uris))
+
+            log.debug(
+                "Adding batch of tracks to playlist",
+                playlist_id=playlist_id,
+                batch_start=batch_start,
+                batch_end=batch_end,
+                batch_size=len(batch_uris),
+                user_id=self.spotify_user_id,
+            )
+
             payload = {"uris": batch_uris}
-            await self.request("POST", url, json=payload)
+            try:
+                await self.request("POST", url, json=payload)
+                log.debug(
+                    "Successfully added batch to playlist",
+                    playlist_id=playlist_id,
+                    batch_start=batch_start,
+                    batch_end=batch_end,
+                )
+            except Exception as e:
+                log.error(
+                    "Failed to add batch to playlist",
+                    playlist_id=playlist_id,
+                    batch_start=batch_start,
+                    batch_end=batch_end,
+                    batch_uris_sample=batch_uris[:3],  # First 3 URIs for debugging
+                    user_id=self.spotify_user_id,
+                    error_type=type(e).__name__,
+                    error_message=str(e),
+                )
+                raise
 
         log.info(
             "Successfully added items to playlist",
             playlist_id=playlist_id,
             count=len(track_uris),
         )
+
+    async def get_playlist_items(self, *, playlist_id: str) -> list[str]:
+        """
+        Fetches all track URIs from a Spotify playlist, handling pagination.
+        """
+        log.info("Fetching all items from playlist", playlist_id=playlist_id)
+        all_track_uris: list[str] = []
+        url: str | None = f"{settings.SPOTIFY_API_URL}/playlists/{playlist_id}/tracks"
+        params: dict[str, Any] | None = {
+            "limit": 50,
+            "fields": "items(track(uri)),next",
+        }
+
+        while url:
+            try:
+                response = await self.request("GET", url, params=params)
+                # After the first request, the full URL is in `data.get("next")`,
+                # so we don't need params anymore.
+                params = None
+                data = response.json()
+
+                items = data.get("items", [])
+                for item in items:
+                    if (
+                        item
+                        and (track := item.get("track"))
+                        and (uri := track.get("uri"))
+                    ):
+                        all_track_uris.append(uri)
+
+                url = data.get("next")
+
+            except httpx.HTTPStatusError as e:
+                log.error(
+                    "Failed to fetch playlist items from Spotify",
+                    playlist_id=playlist_id,
+                    url=url,
+                    status_code=e.response.status_code,
+                )
+                # For now, we break the loop on error.
+                break
+
+        log.info(
+            "Successfully fetched all items from playlist",
+            playlist_id=playlist_id,
+            count=len(all_track_uris),
+        )
+        return all_track_uris

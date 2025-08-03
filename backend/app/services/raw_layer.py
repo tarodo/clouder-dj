@@ -21,6 +21,7 @@ from app.db.models.raw_layer import (
 from app.repositories.category import CategoryRepository
 from app.repositories.raw_layer import RawLayerRepository
 from app.repositories.style import StyleRepository
+from app.repositories.track import TrackRepository
 from app.schemas.raw_layer import (
     RawLayerBlockCreate,
     RawLayerBlockResponse,
@@ -42,6 +43,7 @@ class RawLayerService:
         self.raw_layer_repo = RawLayerRepository(db)
         self.style_repo = StyleRepository(db)
         self.category_repo = CategoryRepository(db)
+        self.track_repo = TrackRepository(db)
 
     async def _create_spotify_playlists(
         self,
@@ -195,12 +197,17 @@ class RawLayerService:
 
         self.db.add(db_block)
         await self.db.flush()
-        await self.db.refresh(db_block)
+        await self.db.refresh(db_block, ["playlists"])
 
         # 5. Categorize & add tracks to Spotify playlists
         log.info(
             "Categorizing and adding tracks to playlists", name=block_in.block_name
         )
+
+        # Add small delay to let Spotify prepare the playlists for modification
+        await asyncio.sleep(0.5)
+        log.debug("Waited for Spotify playlists to be ready for modification")
+
         categorized_uris = self._categorize_tracks(selected_tracks, block_in.start_date)
 
         playlist_map = {
@@ -285,10 +292,58 @@ class RawLayerService:
         if not block:
             return None
 
+        log.info(
+            "Processing block, persisting target playlist tracks", block_id=block.id
+        )
+        # Предзагружаем playlists чтобы избежать lazy loading
+        await self.db.refresh(block, ["playlists"])
+        target_playlists = [
+            p for p in block.playlists if p.playlist_type == RawLayerPlaylistType.TARGET
+        ]
+
+        for playlist in target_playlists:
+            log.info(
+                "Fetching tracks for target playlist",
+                playlist_id=playlist.spotify_playlist_id,
+                playlist_db_id=playlist.id,
+            )
+            track_uris = await self.spotify_client.get_playlist_items(
+                playlist_id=playlist.spotify_playlist_id
+            )
+
+            if not track_uris:
+                log.info(
+                    "No tracks found in target playlist, skipping",
+                    playlist_id=playlist.spotify_playlist_id,
+                )
+                continue
+
+            log.info(
+                "Found tracks in target playlist, finding in local DB",
+                playlist_id=playlist.spotify_playlist_id,
+                track_count=len(track_uris),
+            )
+            found_tracks = await self.track_repo.find_by_spotify_uris(uris=track_uris)
+
+            if found_tracks:
+                log.info(
+                    "Associating tracks with playlist in DB",
+                    playlist_db_id=playlist.id,
+                    found_track_count=len(found_tracks),
+                )
+                # Предзагружаем tracks чтобы избежать lazy loading
+                await self.db.refresh(playlist, ["tracks"])
+                playlist.tracks.extend(found_tracks)
+            else:
+                log.info(
+                    "None of the tracks from Spotify playlist found in local DB",
+                    playlist_id=playlist.spotify_playlist_id,
+                )
+
         block.status = RawLayerBlockStatus.PROCESSED
         self.db.add(block)
         await self.db.flush()
-        await self.db.refresh(block)
+        await self.db.refresh(block, ["playlists", "tracks"])
 
         return RawLayerBlockResponse(
             id=block.id,

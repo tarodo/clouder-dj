@@ -1,6 +1,6 @@
 from datetime import datetime, timedelta, timezone
 
-from sqlalchemy import select
+from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.security import encrypt_data
@@ -56,3 +56,29 @@ class SpotifyTokenRepository:
         await self.db.flush()
         await self.db.refresh(db_token)
         return db_token
+
+    async def update_tokens(
+        self,
+        *,
+        db_token: SpotifyToken,
+        new_access_token: str,
+        new_refresh_token: str,
+        new_expires_at: datetime,
+        scope: str
+    ) -> SpotifyToken:
+        """Updates both access and refresh tokens for a given SpotifyToken object."""
+        db_token.encrypted_access_token = encrypt_data(new_access_token)
+        db_token.encrypted_refresh_token = encrypt_data(new_refresh_token)
+        db_token.expires_at = new_expires_at
+        db_token.scope = scope
+        self.db.add(db_token)
+        await self.db.flush()
+        await self.db.refresh(db_token)
+        return db_token
+
+    async def delete_token(self, *, user_id: int) -> None:
+        """Deletes the Spotify token for a given user."""
+        await self.db.execute(
+            delete(SpotifyToken).where(SpotifyToken.user_id == user_id)
+        )
+        await self.db.flush()

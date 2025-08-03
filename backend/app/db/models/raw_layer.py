@@ -51,6 +51,18 @@ raw_layer_block_tracks = Table(
     Column("track_id", Integer, ForeignKey("tracks.id"), primary_key=True),
 )
 
+raw_layer_playlists_tracks = Table(
+    "raw_layer_playlists_tracks",
+    Base.metadata,
+    Column(
+        "raw_layer_playlist_id",
+        Integer,
+        ForeignKey("raw_layer_playlists.id"),
+        primary_key=True,
+    ),
+    Column("track_id", Integer, ForeignKey("tracks.id"), primary_key=True),
+)
+
 
 class RawLayerBlock(Base, TimestampMixin):
     __tablename__ = "raw_layer_blocks"
@@ -113,4 +125,9 @@ class RawLayerPlaylist(Base, TimestampMixin):
     )
     category: Mapped[Optional["Category"]] = relationship(
         "Category", back_populates="raw_layer_playlists"
+    )
+    tracks: Mapped[List["Track"]] = relationship(
+        "Track",
+        secondary=raw_layer_playlists_tracks,
+        back_populates="raw_layer_playlists",
     )
