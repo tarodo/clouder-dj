@@ -252,10 +252,11 @@ class EnrichmentService:
 
             while True:
                 artists: List[ArtistModel]
-                artists, total = (
-                    await self.artist_repo.get_artists_missing_spotify_link(
-                        offset=0, limit=settings.SPOTIFY_SEARCH_BATCH_SIZE
-                    )
+                (
+                    artists,
+                    total,
+                ) = await self.artist_repo.get_artists_missing_spotify_link(
+                    offset=0, limit=settings.SPOTIFY_SEARCH_BATCH_SIZE
                 )
 
                 if total_artists == -1:

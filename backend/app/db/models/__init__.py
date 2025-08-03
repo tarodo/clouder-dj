@@ -14,6 +14,8 @@ from .raw_layer import (  # noqa: F401
     raw_layer_playlists_tracks,
 )
 
+from .release_playlist import ReleasePlaylist, ReleasePlaylistTrack  # noqa: F401
+
 __all__ = [
     "User",
     "SpotifyToken",
@@ -29,4 +31,6 @@ __all__ = [
     "RawLayerPlaylist",
     "raw_layer_block_tracks",
     "raw_layer_playlists_tracks",
+    "ReleasePlaylist",
+    "ReleasePlaylistTrack",
 ]

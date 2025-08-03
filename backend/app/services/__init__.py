@@ -5,6 +5,7 @@ from .collection import CollectionService
 from .enrichment import EnrichmentService
 from .label import LabelService
 from .release import ReleaseService
+from .release_playlist import ReleasePlaylistService
 from .track import TrackService
 from .style import StyleService
 from .user import UserService
@@ -19,6 +20,7 @@ __all__ = [
     "EnrichmentService",
     "LabelService",
     "ReleaseService",
+    "ReleasePlaylistService",
     "TrackService",
     "StyleService",
     "RawLayerService",

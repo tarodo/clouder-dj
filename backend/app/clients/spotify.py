@@ -713,6 +713,70 @@ class UserSpotifyClient:
         )
         return playlist_data
 
+    async def get_playlist(self, *, playlist_id: str) -> dict:
+        """
+        Fetches a playlist's metadata from Spotify.
+        """
+        log.info("Fetching playlist metadata", playlist_id=playlist_id)
+        url = f"{settings.SPOTIFY_API_URL}/playlists/{playlist_id}"
+        # We don't need all the track data here, just playlist metadata
+        params = {"fields": "id,name,description,external_urls,owner,uri,tracks.total"}
+        response = await self.request("GET", url, params=params)
+        return response.json()
+
+    async def get_playlist_all_items(self, *, playlist_id: str) -> list[dict]:
+        """
+        Fetches all track items from a Spotify playlist, handling pagination.
+        Returns a list of track objects from the playlist items.
+        """
+        log.info("Fetching all items from playlist", playlist_id=playlist_id)
+        all_track_items: list[dict] = []
+        url: str | None = f"{settings.SPOTIFY_API_URL}/playlists/{playlist_id}/tracks"
+        params: dict[str, Any] | None = {
+            "limit": 50,
+            "fields": "items(track(uri)),next",
+        }
+
+        page_num = 0
+        while url:
+            page_num += 1
+            log.debug(
+                "Fetching page of playlist items",
+                playlist_id=playlist_id,
+                page=page_num,
+                url=url,
+            )
+            try:
+                response = await self.request("GET", url, params=params)
+                # After the first request, the full URL is in `data.get("next")`,
+                # so we don't need params anymore.
+                params = None
+                data = response.json()
+
+                items = data.get("items", [])
+                for item in items:
+                    if item and (track := item.get("track")) and track.get("uri"):
+                        all_track_items.append(track)
+
+                url = data.get("next")
+
+            except httpx.HTTPStatusError as e:
+                log.error(
+                    "Failed to fetch playlist items from Spotify",
+                    playlist_id=playlist_id,
+                    url=url,
+                    status_code=e.response.status_code,
+                )
+                # For now, we break the loop on error.
+                break
+
+        log.info(
+            "Successfully fetched all items from playlist",
+            playlist_id=playlist_id,
+            count=len(all_track_items),
+        )
+        return all_track_items
+
     async def update_playlist_details(self, *, playlist_id: str, name: str) -> None:
         """Updates a playlist's details."""
         log.info("Updating playlist details", playlist_id=playlist_id, new_name=name)

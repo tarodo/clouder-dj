@@ -21,6 +21,7 @@ if TYPE_CHECKING:
     from .external_data import ExternalData
     from .release import Release
     from .raw_layer import RawLayerBlock, RawLayerPlaylist
+    from .release_playlist import ReleasePlaylistTrack
 
 
 track_artists = Table(
@@ -62,6 +63,9 @@ class Track(Base, TimestampMixin):
         "ExternalData.entity_type == 'TRACK')",
         foreign_keys="ExternalData.entity_id",
         viewonly=True,
+    )
+    playlist_associations: Mapped[List["ReleasePlaylistTrack"]] = relationship(
+        "ReleasePlaylistTrack", back_populates="track"
     )
 
     __table_args__ = (

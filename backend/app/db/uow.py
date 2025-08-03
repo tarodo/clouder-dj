@@ -11,6 +11,7 @@ from app.repositories import (
     ExternalDataRepository,
     LabelRepository,
     RawLayerRepository,
+    ReleasePlaylistRepository,
     ReleaseRepository,
     SpotifyTokenRepository,
     StyleRepository,
@@ -26,6 +27,7 @@ class AbstractUnitOfWork(ABC):
     labels: LabelRepository
     raw_layer: RawLayerRepository
     releases: ReleaseRepository
+    release_playlists: ReleasePlaylistRepository
     spotify_tokens: SpotifyTokenRepository
     styles: StyleRepository
     tracks: TrackRepository
@@ -61,6 +63,7 @@ class SqlAlchemyUnitOfWork(AbstractUnitOfWork):
         self.labels = LabelRepository(self.session)
         self.raw_layer = RawLayerRepository(self.session)
         self.releases = ReleaseRepository(self.session)
+        self.release_playlists = ReleasePlaylistRepository(self.session)
         self.spotify_tokens = SpotifyTokenRepository(self.session)
         self.styles = StyleRepository(self.session)
         self.tracks = TrackRepository(self.session)

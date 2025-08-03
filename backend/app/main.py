@@ -16,6 +16,7 @@ from app.api import (
     collection,
     labels,
     me,
+    release_playlists,
     releases,
     styles,
     tasks,
@@ -128,6 +129,7 @@ app.include_router(collection.router)
 app.include_router(tasks.router)
 app.include_router(category.router)
 app.include_router(raw_layer.router)
+app.include_router(release_playlists.router)
 
 app.add_exception_handler(BaseAPIException, api_exception_handler)
 app.add_exception_handler(StarletteHTTPException, http_exception_handler)

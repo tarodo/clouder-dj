@@ -2,6 +2,7 @@ from .artist import ArtistRepository
 from .category import CategoryRepository
 from .external_data import ExternalDataRepository
 from .label import LabelRepository
+from .release_playlist import ReleasePlaylistRepository
 from .release import ReleaseRepository
 from .spotify_token import SpotifyTokenRepository
 from .style import StyleRepository
@@ -14,6 +15,7 @@ __all__ = [
     "CategoryRepository",
     "ExternalDataRepository",
     "LabelRepository",
+    "ReleasePlaylistRepository",
     "ReleaseRepository",
     "SpotifyTokenRepository",
     "StyleRepository",

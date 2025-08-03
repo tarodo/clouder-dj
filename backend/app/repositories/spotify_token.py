@@ -64,7 +64,7 @@ class SpotifyTokenRepository:
         new_access_token: str,
         new_refresh_token: str,
         new_expires_at: datetime,
-        scope: str
+        scope: str,
     ) -> SpotifyToken:
         """Updates both access and refresh tokens for a given SpotifyToken object."""
         db_token.encrypted_access_token = encrypt_data(new_access_token)

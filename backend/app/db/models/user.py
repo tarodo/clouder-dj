@@ -9,6 +9,7 @@ if TYPE_CHECKING:
     from .spotify_token import SpotifyToken
     from .category import Category
     from .raw_layer import RawLayerBlock
+    from .release_playlist import ReleasePlaylist
 
 
 class User(Base, TimestampMixin):
@@ -31,6 +32,11 @@ class User(Base, TimestampMixin):
     )
     raw_layer_blocks: Mapped[List["RawLayerBlock"]] = relationship(
         "RawLayerBlock",
+        back_populates="user",
+        cascade="all, delete-orphan",
+    )
+    release_playlists: Mapped[List["ReleasePlaylist"]] = relationship(
+        "ReleasePlaylist",
         back_populates="user",
         cascade="all, delete-orphan",
     )
