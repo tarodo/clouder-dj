@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_current_user, get_db
@@ -18,10 +18,15 @@ router = APIRouter(prefix="/labels", tags=["labels"])
 )
 async def get_labels(
     pagination: PaginationParams = Depends(),
+    search: str | None = Query(
+        default=None, description="Case-insensitive search for label name"
+    ),
     db: AsyncSession = Depends(get_db),
 ) -> PaginatedResponse[Label]:
     """
     Get a paginated list of labels.
     """
     label_service = LabelService(db)
-    return await label_service.get_labels_paginated(params=pagination)
+    return await label_service.get_labels_paginated(
+        params=pagination, search_query=search
+    )

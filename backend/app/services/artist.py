@@ -12,9 +12,11 @@ class ArtistService:
         self.artist_repo = ArtistRepository(db)
 
     async def get_artists_paginated(
-        self, *, params: PaginationParams
+        self, *, params: PaginationParams, search_query: str | None = None
     ) -> PaginatedResponse[ArtistSchema]:
-        artists, total = await self.artist_repo.get_paginated(params=params)
+        artists, total = await self.artist_repo.get_paginated(
+            params=params, search_query=search_query
+        )
         return PaginatedResponse.create(
             items=[ArtistSchema.model_validate(artist) for artist in artists],
             total=total,

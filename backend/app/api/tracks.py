@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_current_user, get_db
@@ -18,10 +18,15 @@ router = APIRouter(prefix="/tracks", tags=["tracks"])
 )
 async def get_tracks(
     pagination: PaginationParams = Depends(),
+    search: str | None = Query(
+        default=None, description="Case-insensitive search for track name"
+    ),
     db: AsyncSession = Depends(get_db),
 ) -> PaginatedResponse[Track]:
     """
     Get a paginated list of tracks.
     """
     track_service = TrackService(db)
-    return await track_service.get_tracks_paginated(params=pagination)
+    return await track_service.get_tracks_paginated(
+        params=pagination, search_query=search
+    )

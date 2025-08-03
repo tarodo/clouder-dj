@@ -12,9 +12,11 @@ class TrackService:
         self.track_repo = TrackRepository(db)
 
     async def get_tracks_paginated(
-        self, *, params: PaginationParams
+        self, *, params: PaginationParams, search_query: str | None = None
     ) -> PaginatedResponse[TrackSchema]:
-        tracks, total = await self.track_repo.get_paginated(params=params)
+        tracks, total = await self.track_repo.get_paginated(
+            params=params, search_query=search_query
+        )
         return PaginatedResponse.create(
             items=[TrackSchema.model_validate(track) for track in tracks],
             total=total,
