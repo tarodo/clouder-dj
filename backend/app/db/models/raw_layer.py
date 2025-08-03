@@ -34,6 +34,11 @@ class RawLayerPlaylistType(str, enum.Enum):
     TARGET = "TARGET"
 
 
+class RawLayerBlockStatus(str, enum.Enum):
+    NEW = "NEW"
+    PROCESSED = "PROCESSED"
+
+
 raw_layer_block_tracks = Table(
     "raw_layer_block_tracks",
     Base.metadata,
@@ -56,6 +61,13 @@ class RawLayerBlock(Base, TimestampMixin):
     style_id: Mapped[int] = mapped_column(ForeignKey("styles.id"), nullable=False)
     start_date: Mapped[date] = mapped_column(Date, nullable=False)
     end_date: Mapped[date] = mapped_column(Date, nullable=False)
+    status: Mapped[RawLayerBlockStatus] = mapped_column(
+        ENUM(
+            RawLayerBlockStatus, name="raw_layer_block_status_enum", create_type=False
+        ),
+        nullable=False,
+        server_default=RawLayerBlockStatus.NEW.value,
+    )
 
     user: Mapped["User"] = relationship(back_populates="raw_layer_blocks")
     style: Mapped["Style"] = relationship(back_populates="raw_layer_blocks")

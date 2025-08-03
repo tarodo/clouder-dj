@@ -5,7 +5,7 @@ from typing import List
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from app.db.models.raw_layer import RawLayerPlaylistType
+from app.db.models.raw_layer import RawLayerBlockStatus, RawLayerPlaylistType
 
 
 class RawLayerBlockCreate(BaseModel):
@@ -28,20 +28,22 @@ class RawLayerPlaylistResponse(BaseModel):
 class RawLayerBlockResponse(BaseModel):
     id: int
     name: str
+    status: RawLayerBlockStatus
     start_date: date
     end_date: date
     playlists: List[RawLayerPlaylistResponse]
     track_count: int
 
-    model_config = ConfigDict(from_attributes=True)
+    model_config = ConfigDict(from_attributes=True, use_enum_values=True)
 
 
 class RawLayerBlockSummary(BaseModel):
     id: int
     name: str
+    status: RawLayerBlockStatus
     start_date: date
     end_date: date
     track_count: int
     playlist_count: int
 
-    model_config = ConfigDict(from_attributes=True)
+    model_config = ConfigDict(from_attributes=True, use_enum_values=True)

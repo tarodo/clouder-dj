@@ -13,7 +13,11 @@ from app.core.constants import VALID_SPOTIFY_ALBUM_TYPES
 from app.core.exceptions import RawLayerBlockExistsError, StyleNotFoundError
 from app.db.models import Category, RawLayerBlock, Style, Track, User
 from app.db.models.external_data import ExternalDataProvider
-from app.db.models.raw_layer import RawLayerPlaylist, RawLayerPlaylistType
+from app.db.models.raw_layer import (
+    RawLayerBlockStatus,
+    RawLayerPlaylist,
+    RawLayerPlaylistType,
+)
 from app.repositories.category import CategoryRepository
 from app.repositories.raw_layer import RawLayerRepository
 from app.repositories.style import StyleRepository
@@ -191,6 +195,7 @@ class RawLayerService:
 
         self.db.add(db_block)
         await self.db.flush()
+        await self.db.refresh(db_block)
 
         # 5. Categorize & add tracks to Spotify playlists
         log.info(
@@ -212,29 +217,15 @@ class RawLayerService:
         if add_track_tasks:
             await asyncio.gather(*add_track_tasks)
 
-        # Load all data before commit to avoid lazy loading after session closes
-        block_id = db_block.id
-        block_name = db_block.name
-        block_start_date = db_block.start_date
-        block_end_date = db_block.end_date
-        # Load all playlist attributes to avoid lazy loading
-        block_playlists = []
-        for playlist in db_block.playlists:
-            block_playlists.append(
-                RawLayerPlaylistResponse(
-                    playlist_type=playlist.playlist_type,
-                    spotify_playlist_id=playlist.spotify_playlist_id,
-                    spotify_playlist_url=playlist.spotify_playlist_url,
-                    category_id=playlist.category_id,
-                )
-            )
-
         return RawLayerBlockResponse(
-            id=block_id,
-            name=block_name,
-            start_date=block_start_date,
-            end_date=block_end_date,
-            playlists=block_playlists,
+            id=db_block.id,
+            name=db_block.name,
+            status=db_block.status,
+            start_date=db_block.start_date,
+            end_date=db_block.end_date,
+            playlists=[
+                RawLayerPlaylistResponse.model_validate(p) for p in db_block.playlists
+            ],
             track_count=len(selected_tracks),
         )
 
@@ -249,6 +240,7 @@ class RawLayerService:
             RawLayerBlockSummary(
                 id=block.id,
                 name=block.name,
+                status=block.status,
                 start_date=block.start_date,
                 end_date=block.end_date,
                 track_count=len(block.tracks),
@@ -275,6 +267,33 @@ class RawLayerService:
         return RawLayerBlockResponse(
             id=block.id,
             name=block.name,
+            status=block.status,
+            start_date=block.start_date,
+            end_date=block.end_date,
+            playlists=[
+                RawLayerPlaylistResponse.model_validate(p) for p in block.playlists
+            ],
+            track_count=len(block.tracks),
+        )
+
+    async def process_block(
+        self, *, block_id: int, user_id: int
+    ) -> RawLayerBlockResponse | None:
+        block = await self.raw_layer_repo.get_by_id_for_user(
+            block_id=block_id, user_id=user_id
+        )
+        if not block:
+            return None
+
+        block.status = RawLayerBlockStatus.PROCESSED
+        self.db.add(block)
+        await self.db.flush()
+        await self.db.refresh(block)
+
+        return RawLayerBlockResponse(
+            id=block.id,
+            name=block.name,
+            status=block.status,
             start_date=block.start_date,
             end_date=block.end_date,
             playlists=[
