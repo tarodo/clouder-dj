@@ -11,7 +11,11 @@ from app.clients.spotify import UserSpotifyClient
 from app.db.models import ReleasePlaylist, User
 from app.db.models.external_data import ExternalDataProvider
 from app.db.uow import AbstractUnitOfWork
-from app.schemas.release_playlist import ReleasePlaylistCreate, ReleasePlaylistImport
+from app.schemas.release_playlist import (
+    ReleasePlaylistCreate,
+    ReleasePlaylistImport,
+    ReleasePlaylistSimple,
+)
 
 log = structlog.get_logger()
 
@@ -109,11 +113,14 @@ class ReleasePlaylistService:
     async def get_playlist_by_id(
         self, *, playlist_id: int, user: User
     ) -> ReleasePlaylist | None:
-        async with self.uow:
-            return await self.uow.release_playlists.get_by_id(
-                id=playlist_id, user_id=user.id
-            )
+        return await self.uow.release_playlists.get_by_id(
+            id=playlist_id, user_id=user.id
+        )
 
-    async def get_playlists_for_user(self, *, user: User) -> Sequence[ReleasePlaylist]:
-        async with self.uow:
-            return await self.uow.release_playlists.get_all_for_user(user_id=user.id)
+    async def get_playlists_for_user(
+        self, *, user: User
+    ) -> Sequence[ReleasePlaylistSimple]:
+        playlists_orm = await self.uow.release_playlists.get_all_for_user(
+            user_id=user.id
+        )
+        return [ReleasePlaylistSimple.model_validate(p) for p in playlists_orm]
