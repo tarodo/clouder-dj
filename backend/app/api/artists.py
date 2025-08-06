@@ -1,10 +1,10 @@
 from __future__ import annotations
 
 from fastapi import APIRouter, Depends, Query
-from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.deps import get_current_user, get_db
+from app.api.deps import get_current_user, get_uow
 from app.api.pagination import PaginatedResponse, PaginationParams
+from app.db.uow import AbstractUnitOfWork
 from app.schemas.artist import Artist
 from app.services.artist import ArtistService
 
@@ -21,12 +21,12 @@ async def get_artists(
     search: str | None = Query(
         default=None, description="Case-insensitive search for artist name"
     ),
-    db: AsyncSession = Depends(get_db),
+    uow: AbstractUnitOfWork = Depends(get_uow),
 ) -> PaginatedResponse[Artist]:
     """
     Get a paginated list of artists.
     """
-    artist_service = ArtistService(db)
+    artist_service = ArtistService(uow.session)
     return await artist_service.get_artists_paginated(
         params=pagination, search_query=search
     )

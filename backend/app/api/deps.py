@@ -4,27 +4,18 @@ import httpx
 import structlog
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
-from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.clients.spotify import SpotifyAPIClient, UserSpotifyClient
 from app.core.security import verify_token
 from app.db.models.user import User
 from app.db.session import AsyncSessionLocal
-from app.db.uow import SqlAlchemyUnitOfWork
-from app.repositories.category import CategoryRepository
-from app.repositories.spotify_token import SpotifyTokenRepository
-from app.repositories.style import StyleRepository
+from app.db.uow import AbstractUnitOfWork, SqlAlchemyUnitOfWork
 from app.services.category import CategoryService
 from app.services.user import UserService
 
 log = structlog.get_logger()
 
 security = HTTPBearer()
-
-
-async def get_db() -> AsyncGenerator[AsyncSession, None]:
-    async with AsyncSessionLocal() as session:
-        yield session
 
 
 async def get_uow() -> AsyncGenerator[SqlAlchemyUnitOfWork, None]:
@@ -35,9 +26,9 @@ async def get_uow() -> AsyncGenerator[SqlAlchemyUnitOfWork, None]:
 
 async def get_current_user(
     credentials: HTTPAuthorizationCredentials = Depends(security),
-    db: AsyncSession = Depends(get_db),
+    uow: AbstractUnitOfWork = Depends(get_uow),
 ) -> User:
-    user_service = UserService(db)
+    user_service = UserService(uow.session)
     try:
         payload = verify_token(credentials.credentials)
     except Exception as e:
@@ -70,7 +61,7 @@ async def get_spotify_api_client() -> AsyncGenerator[SpotifyAPIClient, None]:
 
 async def get_user_spotify_client(
     current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db),
+    uow: AbstractUnitOfWork = Depends(get_uow),
 ) -> AsyncGenerator[UserSpotifyClient, None]:
     if not current_user.spotify_token:
         raise HTTPException(
@@ -78,7 +69,7 @@ async def get_user_spotify_client(
             detail="User does not have a Spotify token linked.",
         )
 
-    token_repo = SpotifyTokenRepository(db)
+    token_repo = uow.spotify_tokens
     async with httpx.AsyncClient() as client:
         yield UserSpotifyClient(
             client=client,
@@ -89,14 +80,12 @@ async def get_user_spotify_client(
 
 
 def get_category_service(
-    db: AsyncSession = Depends(get_db),
+    uow: AbstractUnitOfWork = Depends(get_uow),
     user_spotify_client: UserSpotifyClient = Depends(get_user_spotify_client),
 ) -> CategoryService:
     """FastAPI dependency to get an instance of CategoryService."""
-    category_repo = CategoryRepository(db)
-    style_repo = StyleRepository(db)
     return CategoryService(
-        category_repo=category_repo,
-        style_repo=style_repo,
+        category_repo=uow.categories,
+        style_repo=uow.styles,
         user_spotify_client=user_spotify_client,
     )
