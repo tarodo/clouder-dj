@@ -18,7 +18,7 @@ class ReleasePlaylistBase(BaseModel):
 
 
 class ReleasePlaylistCreate(ReleasePlaylistBase):
-    pass
+    public: bool = False
 
 
 class ReleasePlaylistImport(BaseModel):

@@ -39,7 +39,19 @@ class ReleasePlaylistService:
     async def create_empty_playlist(
         self, *, playlist_in: ReleasePlaylistCreate, user: User
     ) -> ReleasePlaylist:
-        playlist = ReleasePlaylist(**playlist_in.model_dump(), user_id=user.id)
+        spotify_playlist = await self.spotify_client.create_playlist(
+            name=playlist_in.name,
+            public=playlist_in.public,
+            description=playlist_in.description or "",
+        )
+
+        playlist = ReleasePlaylist(
+            name=playlist_in.name,
+            description=playlist_in.description,
+            user_id=user.id,
+            spotify_playlist_id=spotify_playlist["id"],
+            spotify_playlist_url=spotify_playlist["external_urls"]["spotify"],
+        )
         self.uow.session.add(playlist)
         await self.uow.session.flush()
         await self.uow.session.refresh(playlist)

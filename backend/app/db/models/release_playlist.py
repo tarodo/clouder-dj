@@ -31,6 +31,7 @@ class ReleasePlaylist(Base, TimestampMixin):
         back_populates="playlist",
         cascade="all, delete-orphan",
         order_by="ReleasePlaylistTrack.position",
+        lazy="selectin",
     )
 
 
