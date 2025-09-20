@@ -295,7 +295,7 @@ class RawLayerService:
         log.info(
             "Processing block, persisting target playlist tracks", block_id=block.id
         )
-        # Предзагружаем playlists чтобы избежать lazy loading
+        # lazy loading playlists
         await self.db.refresh(block, ["playlists"])
         target_playlists = [
             p for p in block.playlists if p.playlist_type == RawLayerPlaylistType.TARGET
@@ -331,7 +331,7 @@ class RawLayerService:
                     playlist_db_id=playlist.id,
                     found_track_count=len(found_tracks),
                 )
-                # Предзагружаем tracks чтобы избежать lazy loading
+                # lazy loading tracks
                 await self.db.refresh(playlist, ["tracks"])
                 playlist.tracks.extend(found_tracks)
             else:
