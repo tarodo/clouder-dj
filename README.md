@@ -18,7 +18,7 @@ A collaborative music queueing service with Spotify integration and support for 
 
 1. Copy the env file:
    ```bash
-   cp backend/.env.dev.example backend/.env.dev
+   cp backend/.env.example backend/.env
    ```
 2. Start the dev stack:
    ```bash
