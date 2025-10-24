@@ -47,6 +47,7 @@ async def login():
         httponly=True,
         max_age=600,
         secure=settings.SECURE_COOKIES,
+        samesite="lax",
     )
     response.set_cookie(
         key="spotify_code_verifier",
@@ -54,6 +55,7 @@ async def login():
         httponly=True,
         max_age=600,
         secure=settings.SECURE_COOKIES,
+        samesite="lax",
     )
 
     return response
@@ -99,8 +101,25 @@ async def callback(
         code=code, code_verifier=code_verifier
     )
     response = JSONResponse(content=tokens)
-    response.delete_cookie("spotify_auth_state")
-    response.delete_cookie("spotify_code_verifier")
+    # Explicitly delete cookies with matching attributes for consistent behavior
+    response.set_cookie(
+        key="spotify_auth_state",
+        value="",
+        max_age=0,
+        expires=0,
+        httponly=True,
+        secure=settings.SECURE_COOKIES,
+        samesite="lax",
+    )
+    response.set_cookie(
+        key="spotify_code_verifier",
+        value="",
+        max_age=0,
+        expires=0,
+        httponly=True,
+        secure=settings.SECURE_COOKIES,
+        samesite="lax",
+    )
 
     return response
 
