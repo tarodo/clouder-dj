@@ -86,10 +86,10 @@ app = FastAPI(
 # CORS middleware
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_origins=settings.CORS_ALLOW_ORIGINS,
+    allow_credentials=False,
+    allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+    allow_headers=["Authorization", "Content-Type", "Accept", "X-Requested-With"],
 )
 
 
@@ -115,6 +115,8 @@ async def logging_middleware(request: Request, call_next):
         status_code=response.status_code,
         process_time=round(process_time, 4),
     )
+    # Ensure response carries the correlation id
+    response.headers["X-Request-ID"] = request_id
     return response
 
 
