@@ -46,6 +46,11 @@ class Settings(BaseSettings):
     # Security
     SECURE_COOKIES: bool = True
 
+    # Spotify Client retry/backoff
+    SPOTIFY_MAX_RETRIES: int = 3
+    SPOTIFY_RETRY_BASE_DELAY_S: float = 1.0
+    SPOTIFY_429_MAX_SLEEP_S: float = 60.0
+
     # Spotify Enrichment Task
     SPOTIFY_SEARCH_BATCH_SIZE: int = 50
     SPOTIFY_API_ERROR_SLEEP_S: int = 5

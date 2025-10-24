@@ -8,6 +8,7 @@ from urllib.parse import urlparse
 import httpx
 import structlog
 from fastapi import HTTPException, status
+from email.utils import parsedate_to_datetime
 
 from app.core.exceptions import BaseAPIException
 from app.core.security import decrypt_data
@@ -367,6 +368,34 @@ class UserSpotifyClient:
 
         log.error("Spotify API request failed", **error_context)
 
+    def _parse_retry_after(self, header_value: str | None) -> float | None:
+        """Parse Retry-After header which can be seconds or HTTP-date (RFC7231).
+        Returns delay in seconds, or None if cannot parse.
+        """
+        if not header_value:
+            return None
+        value = header_value.strip()
+        # Try numeric seconds first
+        try:
+            seconds = float(value)
+            if seconds >= 0:
+                return seconds
+        except (ValueError, TypeError):
+            pass
+        # Try HTTP-date
+        try:
+            dt = parsedate_to_datetime(value)
+            if dt is not None:
+                # Ensure timezone-aware comparison
+                now = datetime.now(timezone.utc)
+                if dt.tzinfo is None:
+                    dt = dt.replace(tzinfo=timezone.utc)
+                delta = (dt - now).total_seconds()
+                return max(delta, 0.0)
+        except Exception:
+            return None
+        return None
+
     async def _refresh_access_token(self) -> None:
         log.info("Refreshing Spotify access token", user_id=self.token_obj.user_id)
 
@@ -518,8 +547,9 @@ class UserSpotifyClient:
         log_context = self._log_request_start(method, url)
 
         # Retry logic for server errors
-        max_retries = 3
-        base_delay = 1.0
+        max_retries = settings.SPOTIFY_MAX_RETRIES
+        base_delay = float(settings.SPOTIFY_RETRY_BASE_DELAY_S)
+        max_sleep_429 = float(settings.SPOTIFY_429_MAX_SLEEP_S)
         start_time = time.time()
 
         for attempt in range(max_retries + 1):
@@ -585,6 +615,50 @@ class UserSpotifyClient:
                         status_code=response.status_code,
                         duration_ms=round(retry_duration, 2),
                     )
+
+                # Handle rate limiting (429 Too Many Requests)
+                if response.status_code == HTTPStatus.TOO_MANY_REQUESTS:
+                    if attempt < max_retries:
+                        retry_after_header = response.headers.get("Retry-After")
+                        retry_after_s = self._parse_retry_after(retry_after_header)
+                        if retry_after_s is None or retry_after_s <= 0:
+                            retry_after_s = base_delay
+                        retry_after_s = min(retry_after_s, max_sleep_429)
+                        log.warning(
+                            "Received 429 from Spotify, retrying after delay",
+                            **log_context,
+                            status_code=response.status_code,
+                            attempt=attempt + 1,
+                            max_retries=max_retries,
+                            retry_after_s=retry_after_s,
+                            rate_limit_remaining=response.headers.get(
+                                "x-ratelimit-remaining"
+                            ),
+                            rate_limit_reset=response.headers.get(
+                                "x-ratelimit-reset"
+                            ),
+                            retry_after_header=retry_after_header,
+                            duration_ms=round(attempt_duration, 2),
+                        )
+                        await asyncio.sleep(retry_after_s)
+                        continue
+                    else:
+                        total_duration = (time.time() - start_time) * 1000
+                        log.error(
+                            "Max retries reached due to Spotify rate limit",
+                            **log_context,
+                            status_code=response.status_code,
+                            max_retries=max_retries,
+                            rate_limit_remaining=response.headers.get(
+                                "x-ratelimit-remaining"
+                            ),
+                            rate_limit_reset=response.headers.get(
+                                "x-ratelimit-reset"
+                            ),
+                            retry_after_header=response.headers.get("Retry-After"),
+                            total_duration_ms=round(total_duration, 2),
+                        )
+                        break
 
                 # Check for server errors that should be retried
                 if response.status_code in [
