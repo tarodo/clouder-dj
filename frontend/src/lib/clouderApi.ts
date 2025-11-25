@@ -48,6 +48,14 @@ export interface ReleasePlaylist extends ReleasePlaylistSimple {
   tracks: ReleasePlaylistTrack[]
 }
 
+export interface RawLayerPlaylistResponse {
+  type: "INBOX_NEW" | "INBOX_OLD" | "INBOX_NOT" | "TRASH" | "TARGET"
+  spotify_playlist_id: string
+  spotify_playlist_url: string
+  category_id: number | null
+  category_name: string | null
+}
+
 export interface RawLayerBlockSummary {
   id: number
   name: string
@@ -56,6 +64,7 @@ export interface RawLayerBlockSummary {
   end_date: string
   track_count: number
   playlist_count: number
+  playlists: RawLayerPlaylistResponse[]
 }
 
 export interface PaginatedResponse<T> {

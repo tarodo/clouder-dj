@@ -243,18 +243,27 @@ class RawLayerService:
             user_id=user_id, params=params
         )
 
-        summary_items = [
-            RawLayerBlockSummary(
-                id=block.id,
-                name=block.name,
-                status=block.status,
-                start_date=block.start_date,
-                end_date=block.end_date,
-                track_count=len(block.tracks),
-                playlist_count=len(block.playlists),
+        summary_items = []
+        for block in blocks:
+            playlists_data = []
+            for p in block.playlists:
+                p_data = RawLayerPlaylistResponse.model_validate(p)
+                if p.category:
+                    p_data.category_name = p.category.name
+                playlists_data.append(p_data)
+
+            summary_items.append(
+                RawLayerBlockSummary(
+                    id=block.id,
+                    name=block.name,
+                    status=block.status,
+                    start_date=block.start_date,
+                    end_date=block.end_date,
+                    track_count=len(block.tracks),
+                    playlist_count=len(block.playlists),
+                    playlists=playlists_data,
+                )
             )
-            for block in blocks
-        ]
 
         return PaginatedResponse.create(
             items=summary_items,
@@ -269,18 +278,27 @@ class RawLayerService:
             user_id=user_id, style_id=style_id, params=params
         )
 
-        summary_items = [
-            RawLayerBlockSummary(
-                id=block.id,
-                name=block.name,
-                status=block.status,
-                start_date=block.start_date,
-                end_date=block.end_date,
-                track_count=len(block.tracks),
-                playlist_count=len(block.playlists),
+        summary_items = []
+        for block in blocks:
+            playlists_data = []
+            for p in block.playlists:
+                p_data = RawLayerPlaylistResponse.model_validate(p)
+                if p.category:
+                    p_data.category_name = p.category.name
+                playlists_data.append(p_data)
+
+            summary_items.append(
+                RawLayerBlockSummary(
+                    id=block.id,
+                    name=block.name,
+                    status=block.status,
+                    start_date=block.start_date,
+                    end_date=block.end_date,
+                    track_count=len(block.tracks),
+                    playlist_count=len(block.playlists),
+                    playlists=playlists_data,
+                )
             )
-            for block in blocks
-        ]
 
         return PaginatedResponse.create(
             items=summary_items,

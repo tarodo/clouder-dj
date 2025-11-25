@@ -13,7 +13,7 @@ from app.db.models.external_data import (
     ExternalDataEntityType,
     ExternalDataProvider,
 )
-from app.db.models.raw_layer import RawLayerBlock
+from app.db.models.raw_layer import RawLayerBlock, RawLayerPlaylist
 from app.db.models.track import Track
 from app.repositories.base import BaseRepository
 
@@ -103,7 +103,10 @@ class RawLayerRepository(BaseRepository[RawLayerBlock]):
 
         items_query = (
             base_query.options(
-                selectinload(self.model.tracks), selectinload(self.model.playlists)
+                selectinload(self.model.tracks),
+                selectinload(self.model.playlists).selectinload(
+                    RawLayerPlaylist.category
+                ),
             )
             .order_by(self.model.id.desc())
             .offset(offset)
@@ -132,7 +135,10 @@ class RawLayerRepository(BaseRepository[RawLayerBlock]):
 
         items_query = (
             base_query.options(
-                selectinload(self.model.tracks), selectinload(self.model.playlists)
+                selectinload(self.model.tracks),
+                selectinload(self.model.playlists).selectinload(
+                    RawLayerPlaylist.category
+                ),
             )
             .order_by(self.model.id.desc())
             .offset(offset)
