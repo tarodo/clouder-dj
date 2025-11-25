@@ -18,6 +18,13 @@ export function MainMenu() {
       </MenubarMenu>
       <MenubarMenu>
         <MenubarTrigger asChild className="cursor-pointer">
+          <NavLink to="/release-playlists" className={({ isActive }) => cn(isActive && "text-primary font-semibold")}>
+            Playlists
+          </NavLink>
+        </MenubarTrigger>
+      </MenubarMenu>
+      <MenubarMenu>
+        <MenubarTrigger asChild className="cursor-pointer">
           <NavLink to="/logout">Logout</NavLink>
         </MenubarTrigger>
       </MenubarMenu>

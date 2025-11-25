@@ -70,17 +70,20 @@ export async function spotifyFetch(input: RequestInfo | URL, init?: RequestInit)
 // For clouder API endpoints that need a token in query params
 export async function clouderTokenizedFetch(input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
   const url = new URL(input.toString())
+  const headers = new Headers(init?.headers)
   const token = getAccessToken()
   if (token) {
     url.searchParams.set("sp_token", token)
+    headers.set("Authorization", `Bearer ${token}`)
   }
-  let response = await fetch(url, init)
+  let response = await fetch(url, { ...init, headers })
 
   if (response.status === 401) {
     try {
       const newToken = await getNewToken()
       url.searchParams.set("sp_token", newToken)
-      response = await fetch(url, init)
+      headers.set("Authorization", `Bearer ${newToken}`)
+      response = await fetch(url, { ...init, headers })
     } catch (refreshError) {
       throw refreshError
     }
