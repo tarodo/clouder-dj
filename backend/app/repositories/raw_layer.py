@@ -87,6 +87,33 @@ class RawLayerRepository(BaseRepository[RawLayerBlock]):
         result = await self.db.execute(stmt)
         return list(result.scalars().unique().all())
 
+    async def get_paginated_by_user(
+        self, *, user_id: int, params: PaginationParams
+    ) -> Tuple[List[RawLayerBlock], int]:
+        offset = (params.page - 1) * params.per_page
+
+        base_query = select(self.model).where(self.model.user_id == user_id)
+
+        total_query = select(func.count()).select_from(base_query.subquery())
+        total_result = await self.db.execute(total_query)
+        total = total_result.scalar_one()
+
+        if total == 0:
+            return [], 0
+
+        items_query = (
+            base_query.options(
+                selectinload(self.model.tracks), selectinload(self.model.playlists)
+            )
+            .order_by(self.model.id.desc())
+            .offset(offset)
+            .limit(params.per_page)
+        )
+        items_result = await self.db.execute(items_query)
+        items = list(items_result.scalars().unique().all())
+
+        return items, total
+
     async def get_paginated_by_user_and_style(
         self, *, user_id: int, style_id: int, params: PaginationParams
     ) -> Tuple[List[RawLayerBlock], int]:

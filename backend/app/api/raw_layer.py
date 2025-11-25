@@ -47,6 +47,27 @@ async def create_raw_layer_block(
 
 
 @router.get(
+    "/raw-blocks",
+    response_model=PaginatedResponse[RawLayerBlockSummary],
+)
+async def get_all_user_raw_layer_blocks(
+    pagination: PaginationParams = Depends(),
+    current_user: User = Depends(get_current_user),
+    uow: AbstractUnitOfWork = Depends(get_uow),
+    user_spotify_client: UserSpotifyClient = Depends(get_user_spotify_client),
+) -> PaginatedResponse[RawLayerBlockSummary]:
+    """
+    Get a paginated list of all raw layer blocks for the current user.
+    """
+    raw_layer_service = RawLayerService(
+        db=uow.session, user_spotify_client=user_spotify_client
+    )
+    return await raw_layer_service.get_user_blocks_paginated(
+        user_id=current_user.id, params=pagination
+    )
+
+
+@router.get(
     "/styles/{style_id}/raw-blocks",
     response_model=PaginatedResponse[RawLayerBlockSummary],
 )

@@ -110,3 +110,15 @@ export async function playerSeek(positionMs: number): Promise<void> {
       throw new Error("Failed to seek track position");
     }
 }
+
+export async function playerPlayContext(contextUri: string): Promise<void> {
+    const response = await spotifyFetch(`${SPOTIFY_API_BASE}/me/player/play`, {
+        method: 'PUT',
+        body: JSON.stringify({
+            context_uri: contextUri
+        })
+    });
+    if (!response.ok) {
+      throw new Error("Failed to play context");
+    }
+}

@@ -2,7 +2,8 @@ from __future__ import annotations
 
 from typing import Sequence
 
-from sqlalchemy import select
+from sqlalchemy import func, select
+from sqlalchemy.engine import Row
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -57,10 +58,20 @@ class ReleasePlaylistRepository(BaseRepository[ReleasePlaylist]):
         result = await self.db.execute(stmt)
         return result.scalars().first()
 
-    async def get_all_for_user(self, *, user_id: int) -> Sequence[ReleasePlaylist]:
-        stmt = select(ReleasePlaylist).where(ReleasePlaylist.user_id == user_id)
+    async def get_all_for_user(
+        self, *, user_id: int
+    ) -> Sequence[Row[tuple[ReleasePlaylist, int]]]:
+        stmt = (
+            select(ReleasePlaylist, func.count(ReleasePlaylistTrack.track_id))
+            .outerjoin(
+                ReleasePlaylistTrack,
+                ReleasePlaylist.id == ReleasePlaylistTrack.release_playlist_id,
+            )
+            .where(ReleasePlaylist.user_id == user_id)
+            .group_by(ReleasePlaylist.id)
+        )
         result = await self.db.execute(stmt)
-        return result.scalars().all()
+        return result.all()
 
     async def get_by_spotify_playlist_id(
         self, *, spotify_playlist_id: str, user_id: int

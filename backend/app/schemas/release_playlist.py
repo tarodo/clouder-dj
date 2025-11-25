@@ -40,6 +40,7 @@ class ReleasePlaylistSimple(ReleasePlaylistBase):
     user_id: int
     spotify_playlist_id: str | None = None
     spotify_playlist_url: str | None = None
+    track_count: int = 0
     # No tracks for list view
 
     model_config = ConfigDict(from_attributes=True)

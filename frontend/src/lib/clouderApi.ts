@@ -41,10 +41,26 @@ export interface ReleasePlaylistSimple {
   user_id: number
   spotify_playlist_id: string | null
   spotify_playlist_url: string | null
+  track_count: number
 }
 
 export interface ReleasePlaylist extends ReleasePlaylistSimple {
   tracks: ReleasePlaylistTrack[]
+}
+
+export interface RawLayerBlockSummary {
+  id: number
+  name: string
+  status: "NEW" | "PROCESSED"
+  start_date: string
+  end_date: string
+  track_count: number
+  playlist_count: number
+}
+
+export interface PaginatedResponse<T> {
+  items: T[]
+  total: number
 }
 
 export async function getClouderWeekForPlaylist(playlistId: string): Promise<ClouderWeekResponse> {
@@ -97,6 +113,14 @@ export async function getReleasePlaylist(id: number): Promise<ReleasePlaylist> {
   const response = await clouderTokenizedFetch(`${config.api.baseUrl}/release-playlists/${id}`)
   if (!response.ok) {
     throw new Error("Failed to fetch release playlist")
+  }
+  return response.json()
+}
+
+export async function getRawLayerBlocks(): Promise<PaginatedResponse<RawLayerBlockSummary>> {
+  const response = await clouderTokenizedFetch(`${config.api.baseUrl}/curation/raw-blocks`)
+  if (!response.ok) {
+    throw new Error("Failed to fetch raw layer blocks")
   }
   return response.json()
 }

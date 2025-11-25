@@ -236,6 +236,32 @@ class RawLayerService:
             track_count=len(selected_tracks),
         )
 
+    async def get_user_blocks_paginated(
+        self, *, user_id: int, params: PaginationParams
+    ) -> PaginatedResponse[RawLayerBlockSummary]:
+        blocks, total = await self.raw_layer_repo.get_paginated_by_user(
+            user_id=user_id, params=params
+        )
+
+        summary_items = [
+            RawLayerBlockSummary(
+                id=block.id,
+                name=block.name,
+                status=block.status,
+                start_date=block.start_date,
+                end_date=block.end_date,
+                track_count=len(block.tracks),
+                playlist_count=len(block.playlists),
+            )
+            for block in blocks
+        ]
+
+        return PaginatedResponse.create(
+            items=summary_items,
+            total=total,
+            params=params,
+        )
+
     async def get_user_blocks_by_style_paginated(
         self, *, user_id: int, style_id: int, params: PaginationParams
     ) -> PaginatedResponse[RawLayerBlockSummary]:
