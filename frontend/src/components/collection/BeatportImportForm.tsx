@@ -42,7 +42,7 @@ export function BeatportImportForm() {
     <form onSubmit={handleSubmit} className="space-y-4">
       <div className="space-y-2">
         <Label>Style</Label>
-        <StyleSelector selectedStyleId={styleId} onSelect={setStyleId} />
+        <StyleSelector selectedStyleId={styleId} onSelect={setStyleId} useBeatportId={true} />
       </div>
 
       <div className="grid grid-cols-2 gap-4">

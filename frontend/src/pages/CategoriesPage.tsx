@@ -20,7 +20,7 @@ export default function CategoriesPage() {
           <CardDescription>Choose a style to view and manage its categories.</CardDescription>
         </CardHeader>
         <CardContent>
-          <StyleSelector selectedStyleId={selectedStyleId} onSelect={setSelectedStyleId} />
+          <StyleSelector selectedStyleId={selectedStyleId} onSelect={setSelectedStyleId} useBeatportId={true} />
         </CardContent>
       </Card>
 

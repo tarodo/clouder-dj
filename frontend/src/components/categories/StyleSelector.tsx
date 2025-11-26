@@ -7,9 +7,10 @@ import { cn } from "@/lib/utils"
 interface StyleSelectorProps {
   selectedStyleId: number | null
   onSelect: (styleId: number) => void
+  useBeatportId?: boolean
 }
 
-export function StyleSelector({ selectedStyleId, onSelect }: StyleSelectorProps) {
+export function StyleSelector({ selectedStyleId, onSelect, useBeatportId = false }: StyleSelectorProps) {
   const { data, isLoading, error } = useQuery({
     queryKey: ["styles"],
     queryFn: getStyles,
@@ -22,16 +23,21 @@ export function StyleSelector({ selectedStyleId, onSelect }: StyleSelectorProps)
 
   return (
     <div className="flex flex-wrap gap-2">
-      {styles.map((style: any) => (
-        <Button
-          key={style.beatport_style_id}
-          variant={selectedStyleId === style.beatport_style_id ? "default" : "outline"}
-          onClick={() => onSelect(style.beatport_style_id)}
-          className={cn("capitalize")}
-        >
-          {style.name}
-        </Button>
-      ))}
+      {styles.map((style: any) => {
+        const styleId = useBeatportId ? style.beatport_style_id : style.id
+        if (styleId === null || styleId === undefined) return null
+
+        return (
+          <Button
+            key={styleId}
+            variant={selectedStyleId === styleId ? "default" : "outline"}
+            onClick={() => onSelect(styleId)}
+            className={cn("capitalize")}
+          >
+            {style.name}
+          </Button>
+        )
+      })}
     </div>
   )
 }
