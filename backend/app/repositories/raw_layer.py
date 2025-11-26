@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import date
 from typing import List, Tuple
 
-from sqlalchemy import and_, func, select
+from sqlalchemy import Integer, and_, cast, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import aliased, selectinload
 
@@ -14,6 +14,7 @@ from app.db.models.external_data import (
     ExternalDataProvider,
 )
 from app.db.models.raw_layer import RawLayerBlock, RawLayerPlaylist
+from app.db.models.style import Style
 from app.db.models.track import Track
 from app.repositories.base import BaseRepository
 
@@ -34,12 +35,19 @@ class RawLayerRepository(BaseRepository[RawLayerBlock]):
         return result.scalars().first()
 
     async def select_tracks_for_block(
-        self, *, start_date: date, end_date: date
+        self, *, start_date: date, end_date: date, style_id: int
     ) -> List[Track]:
         """
         Selects tracks that have a Beatport release within the date range
-        and also have a corresponding Spotify link.
+        and also have a corresponding Spotify link, filtered by style.
         """
+        # Get the style to access beatport_style_id
+        style_stmt = select(Style).where(Style.id == style_id)
+        style_result = await self.db.execute(style_stmt)
+        style = style_result.scalars().first()
+        if not style or not style.beatport_style_id:
+            return []
+
         # Create an alias for the ExternalData table to use in the subquery
         # to prevent SQLAlchemy from auto-correlating and removing the FROM clause.
         spotify_ext_data = aliased(ExternalData)
@@ -70,6 +78,8 @@ class RawLayerRepository(BaseRepository[RawLayerBlock]):
                 ExternalData.raw_data["publish_date"]
                 .as_string()
                 .between(str(start_date), str(end_date)),
+                cast(ExternalData.raw_data["genre"]["id"].astext, Integer)
+                == style.beatport_style_id,
                 spotify_exists_subquery,
             )
             .distinct()

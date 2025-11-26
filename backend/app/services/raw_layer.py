@@ -171,6 +171,7 @@ class RawLayerService:
         selected_tracks = await self.raw_layer_repo.select_tracks_for_block(
             start_date=block_in.start_date,
             end_date=block_in.end_date,
+            style_id=style.id,
         )
         log.info("Selected tracks", count=len(selected_tracks))
 
