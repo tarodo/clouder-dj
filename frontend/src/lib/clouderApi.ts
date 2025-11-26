@@ -6,6 +6,30 @@ export interface Artist {
   name: string
 }
 
+export interface Style {
+  id: number
+  name: string
+  beatport_style_id: number | null
+}
+
+export interface Category {
+  id: number
+  name: string
+  user_id: number
+  style_id: number
+  spotify_playlist_id: string
+  spotify_playlist_url: string
+}
+
+export interface CategoryCreate {
+  name: string
+  is_public?: boolean
+}
+
+export interface CategoryUpdate {
+  name: string
+}
+
 export interface Track {
   id: number
   name: string
@@ -104,4 +128,63 @@ export async function getRawLayerBlocks(): Promise<PaginatedResponse<RawLayerBlo
     throw new Error("Failed to fetch raw layer blocks")
   }
   return response.json()
+}
+
+export async function getStyles(): Promise<PaginatedResponse<Style>> {
+  const response = await clouderTokenizedFetch(`${config.api.baseUrl}/styles`)
+  if (!response.ok) {
+    throw new Error("Failed to fetch styles")
+  }
+  return response.json()
+}
+
+export async function getCategories(styleId: number): Promise<Category[]> {
+  const response = await clouderTokenizedFetch(`${config.api.baseUrl}/curation/styles/${styleId}/categories`)
+  if (!response.ok) {
+    throw new Error("Failed to fetch categories")
+  }
+  return response.json()
+}
+
+export async function createCategory(styleId: number, data: CategoryCreate): Promise<Category[]> {
+  const response = await clouderTokenizedFetch(`${config.api.baseUrl}/curation/styles/${styleId}/categories`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify([data]),
+  })
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}))
+    throw new Error((errorData as any).detail || "Failed to create category")
+  }
+  return response.json()
+}
+
+export async function updateCategory(categoryId: number, data: CategoryUpdate): Promise<Category> {
+  const response = await clouderTokenizedFetch(`${config.api.baseUrl}/curation/categories/${categoryId}`, {
+    method: "PATCH",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(data),
+  })
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}))
+    throw new Error((errorData as any).detail || "Failed to update category")
+  }
+  return response.json()
+}
+
+export async function deleteCategory(categoryId: number, deleteOnSpotify: boolean): Promise<void> {
+  const response = await clouderTokenizedFetch(`${config.api.baseUrl}/curation/categories/${categoryId}?delete_on_spotify=${deleteOnSpotify}`, {
+    method: "DELETE",
+  })
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}))
+    throw new Error((errorData as any).detail || "Failed to delete category")
+  }
 }
