@@ -132,7 +132,8 @@ class ReleasePlaylistService:
     async def get_playlists_for_user(
         self, *, user: User
     ) -> Sequence[ReleasePlaylistSimple]:
-        playlists_orm = await self.uow.release_playlists.get_all_for_user(
-            user_id=user.id
-        )
-        return [ReleasePlaylistSimple.model_validate(p) for p in playlists_orm]
+        results = await self.uow.release_playlists.get_all_for_user(user_id=user.id)
+        return [
+            ReleasePlaylistSimple(**playlist.__dict__, track_count=count)
+            for playlist, count in results
+        ]

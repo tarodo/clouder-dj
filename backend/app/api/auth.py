@@ -3,7 +3,7 @@ from urllib.parse import urlencode
 
 import structlog
 from fastapi import APIRouter, Depends, HTTPException, Request, status
-from fastapi.responses import JSONResponse, RedirectResponse
+from fastapi.responses import RedirectResponse
 
 from app.api.deps import get_spotify_api_client, get_uow
 from app.clients.spotify import SpotifyAPIClient
@@ -98,7 +98,14 @@ async def callback(
     tokens = await auth_service.handle_spotify_callback(
         code=code, code_verifier=code_verifier
     )
-    response = JSONResponse(content=tokens)
+
+    params = {
+        "access_token": tokens["access_token"],
+        "refresh_token": tokens["refresh_token"],
+        "spotify_access_token": tokens["spotify_access_token"],
+    }
+    redirect_url = f"{settings.FRONTEND_URL}/spotify-callback?{urlencode(params)}"
+    response = RedirectResponse(url=redirect_url)
     response.delete_cookie("spotify_auth_state")
     response.delete_cookie("spotify_code_verifier")
 
@@ -106,19 +113,13 @@ async def callback(
 
 
 @router.post("/refresh", response_model=TokenRefreshResponse)
-async def refresh_token(request: TokenRefreshRequest):
+async def refresh_token(
+    request: TokenRefreshRequest,
+    uow: AbstractUnitOfWork = Depends(get_uow),
+    spotify_client: SpotifyAPIClient = Depends(get_spotify_api_client),
+):
     """
-    Refreshes the application access token using a valid refresh token.
+    Refreshes the application access token and the Spotify access token.
     """
-    payload = security.verify_token(request.refresh_token)
-    spotify_id: str | None = payload.get("sub")
-    if not spotify_id:
-        log.warning("Could not validate credentials, 'sub' not in token payload")
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Could not validate credentials",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
-
-    new_access_token = security.create_access_token(data={"sub": spotify_id})
-    return TokenRefreshResponse(access_token=new_access_token)
+    auth_service = AuthService(db=uow.session, spotify_client=spotify_client)
+    return await auth_service.refresh_app_and_spotify_tokens(request.refresh_token)

@@ -19,6 +19,7 @@ class RawLayerPlaylistResponse(BaseModel):
     spotify_playlist_id: str
     spotify_playlist_url: str
     category_id: int | None = None
+    category_name: str | None = None
 
     model_config = ConfigDict(
         from_attributes=True, use_enum_values=True, populate_by_name=True
@@ -40,10 +41,13 @@ class RawLayerBlockResponse(BaseModel):
 class RawLayerBlockSummary(BaseModel):
     id: int
     name: str
+    style_id: int
+    style_name: str
     status: RawLayerBlockStatus
     start_date: date
     end_date: date
     track_count: int
     playlist_count: int
+    playlists: List[RawLayerPlaylistResponse]
 
     model_config = ConfigDict(from_attributes=True, use_enum_values=True)

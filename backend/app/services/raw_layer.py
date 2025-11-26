@@ -45,6 +45,17 @@ class RawLayerService:
         self.category_repo = CategoryRepository(db)
         self.track_repo = TrackRepository(db)
 
+    def _build_playlist_responses(
+        self, playlists: list[RawLayerPlaylist]
+    ) -> list[RawLayerPlaylistResponse]:
+        playlist_responses: list[RawLayerPlaylistResponse] = []
+        for playlist in playlists:
+            playlist_data = RawLayerPlaylistResponse.model_validate(playlist)
+            if playlist.category:
+                playlist_data.category_name = playlist.category.name
+            playlist_responses.append(playlist_data)
+        return playlist_responses
+
     async def _create_spotify_playlists(
         self,
         block_name: str,
@@ -171,6 +182,7 @@ class RawLayerService:
         selected_tracks = await self.raw_layer_repo.select_tracks_for_block(
             start_date=block_in.start_date,
             end_date=block_in.end_date,
+            style_id=style.id,
         )
         log.info("Selected tracks", count=len(selected_tracks))
 
@@ -230,10 +242,38 @@ class RawLayerService:
             status=db_block.status,
             start_date=db_block.start_date,
             end_date=db_block.end_date,
-            playlists=[
-                RawLayerPlaylistResponse.model_validate(p) for p in db_block.playlists
-            ],
+            playlists=self._build_playlist_responses(db_block.playlists),
             track_count=len(selected_tracks),
+        )
+
+    async def get_user_blocks_paginated(
+        self, *, user_id: int, params: PaginationParams
+    ) -> PaginatedResponse[RawLayerBlockSummary]:
+        blocks, total = await self.raw_layer_repo.get_paginated_by_user(
+            user_id=user_id, params=params
+        )
+
+        summary_items = []
+        for block in blocks:
+            summary_items.append(
+                RawLayerBlockSummary(
+                    id=block.id,
+                    name=block.name,
+                    style_id=block.style.id,
+                    style_name=block.style.name,
+                    status=block.status,
+                    start_date=block.start_date,
+                    end_date=block.end_date,
+                    track_count=len(block.tracks),
+                    playlist_count=len(block.playlists),
+                    playlists=self._build_playlist_responses(block.playlists),
+                )
+            )
+
+        return PaginatedResponse.create(
+            items=summary_items,
+            total=total,
+            params=params,
         )
 
     async def get_user_blocks_by_style_paginated(
@@ -243,18 +283,22 @@ class RawLayerService:
             user_id=user_id, style_id=style_id, params=params
         )
 
-        summary_items = [
-            RawLayerBlockSummary(
-                id=block.id,
-                name=block.name,
-                status=block.status,
-                start_date=block.start_date,
-                end_date=block.end_date,
-                track_count=len(block.tracks),
-                playlist_count=len(block.playlists),
+        summary_items = []
+        for block in blocks:
+            summary_items.append(
+                RawLayerBlockSummary(
+                    id=block.id,
+                    name=block.name,
+                    style_id=block.style.id,
+                    style_name=block.style.name,
+                    status=block.status,
+                    start_date=block.start_date,
+                    end_date=block.end_date,
+                    track_count=len(block.tracks),
+                    playlist_count=len(block.playlists),
+                    playlists=self._build_playlist_responses(block.playlists),
+                )
             )
-            for block in blocks
-        ]
 
         return PaginatedResponse.create(
             items=summary_items,
@@ -277,9 +321,7 @@ class RawLayerService:
             status=block.status,
             start_date=block.start_date,
             end_date=block.end_date,
-            playlists=[
-                RawLayerPlaylistResponse.model_validate(p) for p in block.playlists
-            ],
+            playlists=self._build_playlist_responses(block.playlists),
             track_count=len(block.tracks),
         )
 
@@ -351,8 +393,6 @@ class RawLayerService:
             status=block.status,
             start_date=block.start_date,
             end_date=block.end_date,
-            playlists=[
-                RawLayerPlaylistResponse.model_validate(p) for p in block.playlists
-            ],
+            playlists=self._build_playlist_responses(block.playlists),
             track_count=len(block.tracks),
         )

@@ -45,3 +45,8 @@ class BaseRepository(Generic[ModelType]):
         total = total_result.scalar_one()
 
         return items, total
+
+    async def count(self) -> int:
+        stmt = select(func.count()).select_from(self.model)
+        result = await self.db.execute(stmt)
+        return result.scalar_one()

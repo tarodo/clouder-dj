@@ -104,6 +104,30 @@ class SpotifyAPIClient:
         )
         return token_response.json()
 
+    async def refresh_token(self, refresh_token: str) -> dict:
+        log.info("Refreshing Spotify token via raw refresh token")
+        data = {
+            "grant_type": "refresh_token",
+            "refresh_token": refresh_token,
+        }
+
+        try:
+            response = await self.client.post(
+                settings.SPOTIFY_TOKEN_URL,
+                data=data,
+                auth=(settings.SPOTIFY_CLIENT_ID, settings.SPOTIFY_CLIENT_SECRET),
+            )
+            response.raise_for_status()
+        except httpx.HTTPStatusError as e:
+            log.error(
+                "Failed to refresh Spotify token",
+                status_code=e.response.status_code,
+                response_text=e.response.text,
+            )
+            raise SpotifyUnauthorizedError("Failed to refresh Spotify token") from e
+
+        return response.json()
+
     async def get_user_profile(self, spotify_access_token: str) -> dict:
         log.info("Fetching user profile from Spotify")
 
