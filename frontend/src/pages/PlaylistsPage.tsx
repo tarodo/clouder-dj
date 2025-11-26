@@ -5,7 +5,7 @@ import { RawLayerList } from "@/components/playlists/RawLayerList"
 import { UserPlaylistsList } from "@/components/playlists/UserPlaylistsList"
 
 export default function PlaylistsPage() {
-  const [activeTab, setActiveTab] = useState("release")
+  const [activeTab, setActiveTab] = useState("raw")
 
   return (
     <div className="space-y-6">
@@ -15,15 +15,15 @@ export default function PlaylistsPage() {
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
         <TabsList className="grid w-full grid-cols-3 max-w-[400px]">
-          <TabsTrigger value="release">Release</TabsTrigger>
           <TabsTrigger value="raw">Raw Layer</TabsTrigger>
+          <TabsTrigger value="release">Release</TabsTrigger>
           <TabsTrigger value="user">User</TabsTrigger>
         </TabsList>
-        <TabsContent value="release" className="mt-6">
-          <ReleasePlaylistsTable />
-        </TabsContent>
         <TabsContent value="raw" className="mt-6">
           <RawLayerList />
+        </TabsContent>
+        <TabsContent value="release" className="mt-6">
+          <ReleasePlaylistsTable />
         </TabsContent>
         <TabsContent value="user" className="mt-6">
           <UserPlaylistsList />

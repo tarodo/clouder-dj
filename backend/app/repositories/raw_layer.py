@@ -104,6 +104,7 @@ class RawLayerRepository(BaseRepository[RawLayerBlock]):
         items_query = (
             base_query.options(
                 selectinload(self.model.tracks),
+                selectinload(self.model.style),
                 selectinload(self.model.playlists).selectinload(
                     RawLayerPlaylist.category
                 ),

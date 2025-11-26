@@ -71,6 +71,8 @@ export interface RawLayerPlaylistResponse {
 export interface RawLayerBlockSummary {
   id: number
   name: string
+  style_id: number
+  style_name: string
   status: "NEW" | "PROCESSED"
   start_date: string
   end_date: string
@@ -101,6 +103,12 @@ export interface BeatportCollectionRequest {
   style_id: number
   date_from: string
   date_to: string
+}
+
+export interface RawLayerBlockCreate {
+  block_name: string
+  start_date: string
+  end_date: string
 }
 
 export async function moveTrackToPlaylist(trackId: string, sourcePlaylistId: string, targetPlaylistId: string, trashPlaylistId: string): Promise<void> {
@@ -145,6 +153,19 @@ export async function getRawLayerBlocks(): Promise<PaginatedResponse<RawLayerBlo
   const response = await clouderTokenizedFetch(`${config.api.baseUrl}/curation/raw-blocks`)
   if (!response.ok) {
     throw new Error("Failed to fetch raw layer blocks")
+  }
+  return response.json()
+}
+
+export async function createRawLayerBlock(styleId: number, data: RawLayerBlockCreate): Promise<RawLayerBlockSummary> {
+  const response = await clouderTokenizedFetch(`${config.api.baseUrl}/curation/styles/${styleId}/raw-blocks`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+  })
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}))
+    throw new Error((errorData as any).detail || "Failed to create raw layer block")
   }
   return response.json()
 }

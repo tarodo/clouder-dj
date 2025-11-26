@@ -256,6 +256,8 @@ class RawLayerService:
                 RawLayerBlockSummary(
                     id=block.id,
                     name=block.name,
+                    style_id=block.style.id,
+                    style_name=block.style.name,
                     status=block.status,
                     start_date=block.start_date,
                     end_date=block.end_date,
@@ -291,6 +293,8 @@ class RawLayerService:
                 RawLayerBlockSummary(
                     id=block.id,
                     name=block.name,
+                    style_id=block.style.id,
+                    style_name=block.style.name,
                     status=block.status,
                     start_date=block.start_date,
                     end_date=block.end_date,

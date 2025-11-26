@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query"
-import { getRawLayerBlocks, type RawLayerPlaylistResponse } from "@/lib/clouderApi"
+import { getRawLayerBlocks, type RawLayerPlaylistResponse, type RawLayerBlockSummary } from "@/lib/clouderApi"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -7,6 +7,7 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { ExternalLink, Play } from "lucide-react"
 import { playerPlayContext } from "@/lib/spotify"
 import { toast } from "sonner"
+import { CreateRawBlockForm } from "./CreateRawBlockForm"
 
 export function RawLayerList() {
   const { data, isLoading, error } = useQuery({
@@ -15,6 +16,16 @@ export function RawLayerList() {
   })
 
   const blocks = data?.items || []
+
+  // Group blocks by style_name
+  const groupedBlocks = blocks.reduce((acc, block) => {
+    const style = block.style_name || "Unknown Style"
+    if (!acc[style]) {
+      acc[style] = []
+    }
+    acc[style].push(block)
+    return acc
+  }, {} as Record<string, RawLayerBlockSummary[]>)
 
   const handlePlay = async (spotifyPlaylistId: string) => {
     try {
@@ -37,42 +48,52 @@ export function RawLayerList() {
   }
 
   if (error) return <div className="p-8 text-center text-red-500">Failed to load raw layer blocks</div>
-  if (blocks.length === 0) return <div className="p-8 text-center text-muted-foreground">No raw layer blocks found.</div>
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-      {blocks.map((block) => (
-        <Card key={block.id} className="flex flex-col">
-          <CardHeader className="pb-3">
-            <div className="flex justify-between items-start">
-              <CardTitle className="truncate" title={block.name}>
-                {block.name}
-              </CardTitle>
-              <Badge variant={block.status === "PROCESSED" ? "secondary" : "outline"}>
-                {block.status}
-              </Badge>
-            </div>
-            <CardDescription>
-              {block.start_date} - {block.end_date}
-            </CardDescription>
-            <div className="flex gap-4 text-xs text-muted-foreground mt-1">
-              <span>{block.track_count} Tracks</span>
-              <span>{block.playlist_count} Playlists</span>
-            </div>
-          </CardHeader>
-          <CardContent className="flex-1 flex flex-col gap-4">
-            <PlaylistSection
-              title="System"
-              playlists={block.playlists.filter(p => p.type !== "TARGET")}
-              onPlay={handlePlay}
-            />
-            <PlaylistSection
-              title="Targets"
-              playlists={block.playlists.filter(p => p.type === "TARGET")}
-              onPlay={handlePlay}
-            />
-          </CardContent>
-        </Card>
+    <div className="space-y-8">
+      <CreateRawBlockForm />
+
+      {blocks.length === 0 && <div className="p-8 text-center text-muted-foreground">No raw layer blocks found.</div>}
+
+      {Object.entries(groupedBlocks).map(([styleName, styleBlocks]) => (
+        <div key={styleName} className="space-y-4">
+          <h2 className="text-2xl font-bold capitalize">{styleName}</h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {styleBlocks.map((block) => (
+              <Card key={block.id} className="flex flex-col">
+                <CardHeader className="pb-3">
+                  <div className="flex justify-between items-start">
+                    <CardTitle className="truncate" title={block.name}>
+                      {block.name}
+                    </CardTitle>
+                    <Badge variant={block.status === "PROCESSED" ? "secondary" : "outline"}>
+                      {block.status}
+                    </Badge>
+                  </div>
+                  <CardDescription>
+                    {block.start_date} - {block.end_date}
+                  </CardDescription>
+                  <div className="flex gap-4 text-xs text-muted-foreground mt-1">
+                    <span>{block.track_count} Tracks</span>
+                    <span>{block.playlist_count} Playlists</span>
+                  </div>
+                </CardHeader>
+                <CardContent className="flex-1 flex flex-col gap-4">
+                  <PlaylistSection
+                    title="System"
+                    playlists={block.playlists.filter(p => p.type !== "TARGET")}
+                    onPlay={handlePlay}
+                  />
+                  <PlaylistSection
+                    title="Targets"
+                    playlists={block.playlists.filter(p => p.type === "TARGET")}
+                    onPlay={handlePlay}
+                  />
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </div>
       ))}
     </div>
   )

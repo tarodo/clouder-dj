@@ -41,6 +41,8 @@ class RawLayerBlockResponse(BaseModel):
 class RawLayerBlockSummary(BaseModel):
     id: int
     name: str
+    style_id: int
+    style_name: str
     status: RawLayerBlockStatus
     start_date: date
     end_date: date
