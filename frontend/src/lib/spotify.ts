@@ -24,6 +24,7 @@ export interface SpotifyCurrentlyPlaying {
   item: {
     id: string;
     name: string;
+    uri: string;
     duration_ms: number;
     artists: { name: string }[];
     album: {
@@ -121,4 +122,28 @@ export async function playerPlayContext(contextUri: string): Promise<void> {
     if (!response.ok) {
       throw new Error("Failed to play context");
     }
+}
+
+export async function addTrackToPlaylist(playlistId: string, trackUri: string): Promise<void> {
+  const response = await spotifyFetch(`${SPOTIFY_API_BASE}/playlists/${playlistId}/tracks`, {
+    method: 'POST',
+    body: JSON.stringify({
+      uris: [trackUri]
+    })
+  });
+  if (!response.ok) {
+    throw new Error("Failed to add track to playlist");
+  }
+}
+
+export async function removeTrackFromPlaylist(playlistId: string, trackUri: string): Promise<void> {
+  const response = await spotifyFetch(`${SPOTIFY_API_BASE}/playlists/${playlistId}/tracks`, {
+    method: 'DELETE',
+    body: JSON.stringify({
+      tracks: [{ uri: trackUri }]
+    })
+  });
+  if (!response.ok) {
+    throw new Error("Failed to remove track from playlist");
+  }
 }
