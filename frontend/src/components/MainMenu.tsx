@@ -8,7 +8,7 @@ import { cn } from "@/lib/utils"
 
 export function MainMenu() {
   return (
-    <Menubar className="mb-4 max-w-[36rem] mx-auto">
+    <Menubar className="mb-4 max-w-[36rem] mx-auto w-full items-center gap-2">
       <MenubarMenu>
         <MenubarTrigger asChild className="cursor-pointer">
           <NavLink to="/player" className={({ isActive }) => cn(isActive && "text-primary font-semibold")}>
@@ -23,9 +23,12 @@ export function MainMenu() {
           </NavLink>
         </MenubarTrigger>
       </MenubarMenu>
+      <div className="flex-1" />
       <MenubarMenu>
         <MenubarTrigger asChild className="cursor-pointer">
-          <NavLink to="/logout">Logout</NavLink>
+          <NavLink to="/logout" className={({ isActive }) => cn(isActive && "text-primary font-semibold")}>
+            Logout
+          </NavLink>
         </MenubarTrigger>
       </MenubarMenu>
     </Menubar>
