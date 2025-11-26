@@ -166,7 +166,9 @@ class RawLayerRepository(BaseRepository[RawLayerBlock]):
         stmt = (
             select(RawLayerBlock)
             .options(
-                selectinload(RawLayerBlock.playlists),
+                selectinload(RawLayerBlock.playlists).selectinload(
+                    RawLayerPlaylist.category
+                ),
                 selectinload(RawLayerBlock.tracks),
             )
             .where(RawLayerBlock.id == block_id, RawLayerBlock.user_id == user_id)

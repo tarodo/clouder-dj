@@ -81,6 +81,16 @@ export interface RawLayerBlockSummary {
   playlists: RawLayerPlaylistResponse[]
 }
 
+export interface RawLayerBlockResponse {
+  id: number
+  name: string
+  status: "NEW" | "PROCESSED"
+  start_date: string
+  end_date: string
+  playlists: RawLayerPlaylistResponse[]
+  track_count: number
+}
+
 export interface PaginatedResponse<T> {
   items: T[]
   total: number
@@ -157,7 +167,7 @@ export async function getRawLayerBlocks(): Promise<PaginatedResponse<RawLayerBlo
   return response.json()
 }
 
-export async function createRawLayerBlock(styleId: number, data: RawLayerBlockCreate): Promise<RawLayerBlockSummary> {
+export async function createRawLayerBlock(styleId: number, data: RawLayerBlockCreate): Promise<RawLayerBlockResponse> {
   const response = await clouderTokenizedFetch(`${config.api.baseUrl}/curation/styles/${styleId}/raw-blocks`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -166,6 +176,17 @@ export async function createRawLayerBlock(styleId: number, data: RawLayerBlockCr
   if (!response.ok) {
     const errorData = await response.json().catch(() => ({}))
     throw new Error((errorData as any).detail || "Failed to create raw layer block")
+  }
+  return response.json()
+}
+
+export async function processRawLayerBlock(blockId: number): Promise<RawLayerBlockResponse> {
+  const response = await clouderTokenizedFetch(`${config.api.baseUrl}/curation/raw-blocks/${blockId}/process`, {
+    method: "POST",
+  })
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}))
+    throw new Error((errorData as any).detail || "Failed to process raw layer block")
   }
   return response.json()
 }

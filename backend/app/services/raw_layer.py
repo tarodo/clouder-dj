@@ -45,6 +45,17 @@ class RawLayerService:
         self.category_repo = CategoryRepository(db)
         self.track_repo = TrackRepository(db)
 
+    def _build_playlist_responses(
+        self, playlists: list[RawLayerPlaylist]
+    ) -> list[RawLayerPlaylistResponse]:
+        playlist_responses: list[RawLayerPlaylistResponse] = []
+        for playlist in playlists:
+            playlist_data = RawLayerPlaylistResponse.model_validate(playlist)
+            if playlist.category:
+                playlist_data.category_name = playlist.category.name
+            playlist_responses.append(playlist_data)
+        return playlist_responses
+
     async def _create_spotify_playlists(
         self,
         block_name: str,
@@ -231,9 +242,7 @@ class RawLayerService:
             status=db_block.status,
             start_date=db_block.start_date,
             end_date=db_block.end_date,
-            playlists=[
-                RawLayerPlaylistResponse.model_validate(p) for p in db_block.playlists
-            ],
+            playlists=self._build_playlist_responses(db_block.playlists),
             track_count=len(selected_tracks),
         )
 
@@ -246,13 +255,6 @@ class RawLayerService:
 
         summary_items = []
         for block in blocks:
-            playlists_data = []
-            for p in block.playlists:
-                p_data = RawLayerPlaylistResponse.model_validate(p)
-                if p.category:
-                    p_data.category_name = p.category.name
-                playlists_data.append(p_data)
-
             summary_items.append(
                 RawLayerBlockSummary(
                     id=block.id,
@@ -264,7 +266,7 @@ class RawLayerService:
                     end_date=block.end_date,
                     track_count=len(block.tracks),
                     playlist_count=len(block.playlists),
-                    playlists=playlists_data,
+                    playlists=self._build_playlist_responses(block.playlists),
                 )
             )
 
@@ -283,13 +285,6 @@ class RawLayerService:
 
         summary_items = []
         for block in blocks:
-            playlists_data = []
-            for p in block.playlists:
-                p_data = RawLayerPlaylistResponse.model_validate(p)
-                if p.category:
-                    p_data.category_name = p.category.name
-                playlists_data.append(p_data)
-
             summary_items.append(
                 RawLayerBlockSummary(
                     id=block.id,
@@ -301,7 +296,7 @@ class RawLayerService:
                     end_date=block.end_date,
                     track_count=len(block.tracks),
                     playlist_count=len(block.playlists),
-                    playlists=playlists_data,
+                    playlists=self._build_playlist_responses(block.playlists),
                 )
             )
 
@@ -326,9 +321,7 @@ class RawLayerService:
             status=block.status,
             start_date=block.start_date,
             end_date=block.end_date,
-            playlists=[
-                RawLayerPlaylistResponse.model_validate(p) for p in block.playlists
-            ],
+            playlists=self._build_playlist_responses(block.playlists),
             track_count=len(block.tracks),
         )
 
@@ -400,8 +393,6 @@ class RawLayerService:
             status=block.status,
             start_date=block.start_date,
             end_date=block.end_date,
-            playlists=[
-                RawLayerPlaylistResponse.model_validate(p) for p in block.playlists
-            ],
+            playlists=self._build_playlist_responses(block.playlists),
             track_count=len(block.tracks),
         )

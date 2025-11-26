@@ -1,10 +1,11 @@
-import { useQuery } from "@tanstack/react-query"
-import { getRawLayerBlocks, type RawLayerPlaylistResponse, type RawLayerBlockSummary } from "@/lib/clouderApi"
+import { useState } from "react"
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
+import { getRawLayerBlocks, processRawLayerBlock, type RawLayerPlaylistResponse, type RawLayerBlockSummary } from "@/lib/clouderApi"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
-import { ExternalLink, Play } from "lucide-react"
+import { ExternalLink, Loader2, Play } from "lucide-react"
 import { playerPlayContext } from "@/lib/spotify"
 import { toast } from "sonner"
 import { CreateRawBlockForm } from "./CreateRawBlockForm"
@@ -13,6 +14,25 @@ export function RawLayerList() {
   const { data, isLoading, error } = useQuery({
     queryKey: ["raw-layer-blocks"],
     queryFn: getRawLayerBlocks,
+  })
+  const queryClient = useQueryClient()
+  const [processingBlockId, setProcessingBlockId] = useState<number | null>(null)
+
+  const processMutation = useMutation({
+    mutationFn: (blockId: number) => processRawLayerBlock(blockId),
+    onMutate: (blockId: number) => {
+      setProcessingBlockId(blockId)
+    },
+    onSuccess: () => {
+      toast.success("Raw layer block processed")
+      queryClient.invalidateQueries({ queryKey: ["raw-layer-blocks"] })
+    },
+    onError: (err: any) => {
+      toast.error(err?.message || "Failed to process block")
+    },
+    onSettled: () => {
+      setProcessingBlockId(null)
+    },
   })
 
   const blocks = data?.items || []
@@ -35,6 +55,10 @@ export function RawLayerList() {
       console.error(e)
       toast.error("Failed to start playback")
     }
+  }
+
+  const handleProcess = (blockId: number) => {
+    processMutation.mutate(blockId)
   }
 
   if (isLoading) {
@@ -66,9 +90,29 @@ export function RawLayerList() {
                     <CardTitle className="truncate" title={block.name}>
                       {block.name}
                     </CardTitle>
-                    <Badge variant={block.status === "PROCESSED" ? "secondary" : "outline"}>
-                      {block.status}
-                    </Badge>
+                    <div className="flex items-center gap-2">
+                      {block.status === "NEW" && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          disabled={processMutation.isPending}
+                          onClick={() => handleProcess(block.id)}
+                          className="gap-2"
+                        >
+                          {processMutation.isPending && processingBlockId === block.id ? (
+                            <>
+                              <Loader2 className="size-3 animate-spin" />
+                              Processing
+                            </>
+                          ) : (
+                            "Process"
+                          )}
+                        </Button>
+                      )}
+                      <Badge variant={block.status === "PROCESSED" ? "secondary" : "outline"}>
+                        {block.status}
+                      </Badge>
+                    </div>
                   </div>
                   <CardDescription>
                     {block.start_date} - {block.end_date}
