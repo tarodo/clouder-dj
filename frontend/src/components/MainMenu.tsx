@@ -30,6 +30,13 @@ export function MainMenu() {
           </NavLink>
         </MenubarTrigger>
       </MenubarMenu>
+      <MenubarMenu>
+        <MenubarTrigger asChild className="cursor-pointer">
+          <NavLink to="/collection" className={({ isActive }) => cn(isActive && "text-primary font-semibold")}>
+            Collection
+          </NavLink>
+        </MenubarTrigger>
+      </MenubarMenu>
       <div className="flex-1" />
       <MenubarMenu>
         <MenubarTrigger asChild className="cursor-pointer">

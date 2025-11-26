@@ -10,7 +10,12 @@ from app.db.models.external_data import (
     ExternalDataEntityType,
     ExternalDataProvider,
 )
-from app.repositories import ExternalDataRepository
+from app.repositories import (
+    ArtistRepository,
+    ExternalDataRepository,
+    ReleaseRepository,
+    StyleRepository,
+)
 from app.services.data_processing import DataProcessingService
 
 log = structlog.get_logger(__name__)
@@ -23,9 +28,15 @@ class CollectionService:
         self,
         external_data_repo: ExternalDataRepository,
         data_processing_service: DataProcessingService,
+        style_repo: StyleRepository | None = None,
+        artist_repo: ArtistRepository | None = None,
+        release_repo: ReleaseRepository | None = None,
     ):
         self.external_data_repo = external_data_repo
         self.data_processing_service = data_processing_service
+        self.style_repo = style_repo
+        self.artist_repo = artist_repo
+        self.release_repo = release_repo
 
     async def collect_beatport_tracks_raw(
         self, bp_token: str, style_id: int, date_from: str, date_to: str
@@ -108,4 +119,23 @@ class CollectionService:
             "processed": processed_count,
             "failed": 0,
             "total": total_to_process,
+        }
+
+    async def get_database_stats(self) -> Dict[str, Any]:
+        if not (self.artist_repo and self.release_repo and self.style_repo):
+            raise RuntimeError("Repositories not initialized for stats")
+
+        total_artists = await self.artist_repo.count()
+        total_releases = await self.release_repo.count()
+        styles_with_counts = await self.style_repo.get_styles_with_track_counts()
+
+        styles_data = [
+            {"id": s.id, "name": s.name, "track_count": count}
+            for s, count in styles_with_counts
+        ]
+
+        return {
+            "total_artists": total_artists,
+            "total_releases": total_releases,
+            "styles": styles_data,
         }

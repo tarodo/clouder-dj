@@ -84,6 +84,25 @@ export interface PaginatedResponse<T> {
   total: number
 }
 
+export interface CollectionStatsStyle {
+  id: number
+  name: string
+  track_count: number
+}
+
+export interface CollectionStats {
+  total_artists: number
+  total_releases: number
+  styles: CollectionStatsStyle[]
+}
+
+export interface BeatportCollectionRequest {
+  bp_token: string
+  style_id: number
+  date_from: string
+  date_to: string
+}
+
 export async function moveTrackToPlaylist(trackId: string, sourcePlaylistId: string, targetPlaylistId: string, trashPlaylistId: string): Promise<void> {
   const response = await clouderTokenizedFetch(`${config.api.baseUrl}/clouder_playlists/move_track`, {
     method: "POST",
@@ -187,4 +206,44 @@ export async function deleteCategory(categoryId: number, deleteOnSpotify: boolea
     const errorData = await response.json().catch(() => ({}))
     throw new Error((errorData as any).detail || "Failed to delete category")
   }
+}
+
+export async function getCollectionStats(): Promise<CollectionStats> {
+  const response = await clouderTokenizedFetch(`${config.api.baseUrl}/collect/stats`)
+  if (!response.ok) {
+    throw new Error("Failed to fetch collection stats")
+  }
+  return response.json()
+}
+
+export async function triggerBeatportCollection(data: BeatportCollectionRequest): Promise<{ task_id: string }> {
+  const response = await clouderTokenizedFetch(`${config.api.baseUrl}/collect/beatport/collect`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(data),
+  })
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}))
+    throw new Error((errorData as any).detail || "Failed to trigger collection")
+  }
+  return response.json()
+}
+
+export async function triggerSpotifyEnrichment(similarityThreshold: number = 80): Promise<{ task_id: string }> {
+  const response = await clouderTokenizedFetch(`${config.api.baseUrl}/collect/spotify/enrich?similarity_threshold=${similarityThreshold}`, {
+    method: "POST",
+  })
+  if (!response.ok) throw new Error("Failed to trigger spotify enrichment")
+  return response.json()
+}
+
+export async function triggerSpotifyArtistEnrichment(): Promise<{ task_id: string }> {
+  const response = await clouderTokenizedFetch(`${config.api.baseUrl}/collect/spotify/enrich-artists`, {
+    method: "POST",
+  })
+  if (!response.ok) throw new Error("Failed to trigger spotify artist enrichment")
+  return response.json()
 }

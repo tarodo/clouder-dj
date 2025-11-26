@@ -24,9 +24,9 @@ export function StyleSelector({ selectedStyleId, onSelect }: StyleSelectorProps)
     <div className="flex flex-wrap gap-2">
       {styles.map((style: any) => (
         <Button
-          key={style.id}
-          variant={selectedStyleId === style.id ? "default" : "outline"}
-          onClick={() => onSelect(style.id)}
+          key={style.beatport_style_id}
+          variant={selectedStyleId === style.beatport_style_id ? "default" : "outline"}
+          onClick={() => onSelect(style.beatport_style_id)}
           className={cn("capitalize")}
         >
           {style.name}

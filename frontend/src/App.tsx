@@ -7,6 +7,7 @@ import { AppLayout } from "@/components/AppLayout"
 import PlaylistsPage from "@/pages/PlaylistsPage"
 import ReleasePlaylistDetailPage from "@/pages/ReleasePlaylistDetail"
 import CategoriesPage from "@/pages/CategoriesPage"
+import CollectionPage from "@/pages/CollectionPage"
 import { ProtectedRoute } from "@/components/auth/ProtectedRoute"
 
 function App() {
@@ -21,6 +22,7 @@ function App() {
           <Route path="/release-playlists" element={<PlaylistsPage />} />
           <Route path="/release-playlists/:id" element={<ReleasePlaylistDetailPage />} />
           <Route path="/categories" element={<CategoriesPage />} />
+          <Route path="/collection" element={<CollectionPage />} />
         </Route>
       </Routes>
     </BrowserRouter>
