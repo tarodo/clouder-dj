@@ -1,34 +1,37 @@
-import { useEffect, useState } from "react"
 import { useParams, Link } from "react-router-dom"
-import { getReleasePlaylist, type ReleasePlaylist } from "@/lib/clouderApi"
+import { useQuery } from "@tanstack/react-query"
+import { getReleasePlaylist } from "@/lib/clouderApi"
 import { Button } from "@/components/ui/button"
+import { Skeleton } from "@/components/ui/skeleton"
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table"
 import { ArrowLeft, ExternalLink } from "lucide-react"
 import { formatMsToTime } from "@/lib/utils"
 
 export default function ReleasePlaylistDetailPage() {
   const { id } = useParams<{ id: string }>()
-  const [playlist, setPlaylist] = useState<ReleasePlaylist | null>(null)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+  const { data: playlist, isLoading, error } = useQuery({
+    queryKey: ["release-playlist", id],
+    queryFn: () => getReleasePlaylist(parseInt(id!, 10)),
+    enabled: !!id,
+  })
 
-  useEffect(() => {
-    const fetchPlaylist = async () => {
-      if (!id) return
-      try {
-        const data = await getReleasePlaylist(parseInt(id, 10))
-        setPlaylist(data)
-      } catch (err) {
-        setError("Failed to load playlist details")
-        console.error(err)
-      } finally {
-        setLoading(false)
-      }
-    }
-    fetchPlaylist()
-  }, [id])
+  if (isLoading) {
+    return (
+      <div className="space-y-4">
+        <Skeleton className="h-12 w-1/3" />
+        <Skeleton className="h-96 w-full" />
+      </div>
+    )
+  }
 
-  if (loading) return <div className="p-8 text-center">Loading details...</div>
-  if (error || !playlist) return <div className="p-8 text-center text-red-500">{error || "Playlist not found"}</div>
+  if (error || !playlist) return <div className="p-8 text-center text-red-500">Playlist not found</div>
 
   return (
     <div className="space-y-6">
@@ -52,28 +55,38 @@ export default function ReleasePlaylistDetailPage() {
       </div>
 
       <div className="border rounded-md">
-        <div className="grid grid-cols-[auto_1fr_auto_auto_auto] gap-4 p-4 font-medium border-b bg-muted/50">
-          <div className="w-8 text-center">#</div>
-          <div>Title</div>
-          <div className="text-right w-16">BPM</div>
-          <div className="text-center w-16">Key</div>
-          <div className="text-right w-16">Time</div>
-        </div>
-        <div className="divide-y">
-          {playlist.tracks.map((item) => (
-            <div key={item.track.id} className="grid grid-cols-[auto_1fr_auto_auto_auto] gap-4 p-4 items-center hover:bg-muted/30 transition-colors">
-              <div className="w-8 text-center text-muted-foreground">{item.position + 1}</div>
-              <div className="min-w-0">
-                <div className="font-medium truncate">{item.track.name}</div>
-                <div className="text-sm text-muted-foreground truncate">{item.track.artists?.map((a) => a.name).join(", ") || ""}</div>
-              </div>
-              <div className="text-right w-16 tabular-nums">{item.track.bpm ? Math.round(item.track.bpm) : "-"}</div>
-              <div className="text-center w-16">{item.track.key || "-"}</div>
-              <div className="text-right w-16 tabular-nums text-muted-foreground">{formatMsToTime(item.track.duration_ms || 0)}</div>
-            </div>
-          ))}
-          {playlist.tracks.length === 0 && <div className="p-8 text-center text-muted-foreground">No tracks in this playlist.</div>}
-        </div>
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead className="w-12 text-center">#</TableHead>
+              <TableHead>Title</TableHead>
+              <TableHead className="text-right w-20">BPM</TableHead>
+              <TableHead className="text-center w-20">Key</TableHead>
+              <TableHead className="text-right w-20">Time</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {playlist.tracks.map((item) => (
+              <TableRow key={item.track.id}>
+                <TableCell className="text-center text-muted-foreground">{item.position + 1}</TableCell>
+                <TableCell>
+                  <div className="font-medium">{item.track.name}</div>
+                  <div className="text-sm text-muted-foreground">{item.track.artists?.map((a) => a.name).join(", ") || ""}</div>
+                </TableCell>
+                <TableCell className="text-right tabular-nums">{item.track.bpm ? Math.round(item.track.bpm) : "-"}</TableCell>
+                <TableCell className="text-center">{item.track.key || "-"}</TableCell>
+                <TableCell className="text-right tabular-nums text-muted-foreground">{formatMsToTime(item.track.duration_ms || 0)}</TableCell>
+              </TableRow>
+            ))}
+            {playlist.tracks.length === 0 && (
+              <TableRow>
+                <TableCell colSpan={5} className="h-24 text-center text-muted-foreground">
+                  No tracks in this playlist.
+                </TableCell>
+              </TableRow>
+            )}
+          </TableBody>
+        </Table>
       </div>
     </div>
   )

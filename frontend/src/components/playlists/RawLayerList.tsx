@@ -1,31 +1,20 @@
-import { useEffect, useState } from "react"
-import { getRawLayerBlocks, type RawLayerBlockSummary, type RawLayerPlaylistResponse } from "@/lib/clouderApi"
+import { useQuery } from "@tanstack/react-query"
+import { getRawLayerBlocks, type RawLayerPlaylistResponse } from "@/lib/clouderApi"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
+import { Skeleton } from "@/components/ui/skeleton"
 import { ExternalLink, Play } from "lucide-react"
 import { playerPlayContext } from "@/lib/spotify"
 import { toast } from "sonner"
 
 export function RawLayerList() {
-  const [blocks, setBlocks] = useState<RawLayerBlockSummary[]>([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+  const { data, isLoading, error } = useQuery({
+    queryKey: ["raw-layer-blocks"],
+    queryFn: getRawLayerBlocks,
+  })
 
-  useEffect(() => {
-    const fetchBlocks = async () => {
-      try {
-        const response = await getRawLayerBlocks()
-        setBlocks(response.items)
-      } catch (err) {
-        setError("Failed to load raw layer blocks")
-        console.error(err)
-      } finally {
-        setLoading(false)
-      }
-    }
-    fetchBlocks()
-  }, [])
+  const blocks = data?.items || []
 
   const handlePlay = async (spotifyPlaylistId: string) => {
     try {
@@ -37,8 +26,17 @@ export function RawLayerList() {
     }
   }
 
-  if (loading) return <div className="p-8 text-center">Loading blocks...</div>
-  if (error) return <div className="p-8 text-center text-red-500">{error}</div>
+  if (isLoading) {
+    return (
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {[1, 2, 3].map(i => (
+          <Skeleton key={i} className="h-64 w-full" />
+        ))}
+      </div>
+    )
+  }
+
+  if (error) return <div className="p-8 text-center text-red-500">Failed to load raw layer blocks</div>
   if (blocks.length === 0) return <div className="p-8 text-center text-muted-foreground">No raw layer blocks found.</div>
 
   return (

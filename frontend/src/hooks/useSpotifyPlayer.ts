@@ -1,4 +1,5 @@
-import { useState, useEffect, useCallback } from "react"
+import { useEffect, useCallback } from "react"
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
 import {
   getCurrentlyPlaying,
   playerNext,
@@ -10,51 +11,34 @@ import {
 } from "@/lib/spotify"
 import { isLoggedIn } from "@/lib/auth"
 
-const REFRESH_INTERVAL = 2000
-const ACTION_DELAY = 500 // Delay to allow Spotify API to update state
+const REFRESH_INTERVAL = 3000
 
 export function useSpotifyPlayer() {
-  const [track, setTrack] = useState<SpotifyCurrentlyPlaying | null>(null)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+  const queryClient = useQueryClient()
 
-  const fetchCurrentTrack = useCallback(async () => {
-    if (!isLoggedIn()) {
-      setError("Authentication token not found.")
-      setLoading(false)
-      return
-    }
-    try {
-      const currentTrack = await getCurrentlyPlaying()
-      setTrack(currentTrack)
-    } catch (e) {
-      console.error(e)
-      setError("Failed to fetch current track.")
-    } finally {
-      setLoading(false)
-    }
-  }, [])
+  const { data: track, isLoading, error } = useQuery({
+    queryKey: ["spotify-player"],
+    queryFn: getCurrentlyPlaying,
+    refetchInterval: REFRESH_INTERVAL,
+    enabled: isLoggedIn(),
+    retry: false,
+  })
 
-  useEffect(() => {
-    setLoading(true)
-    fetchCurrentTrack()
-    const intervalId = setInterval(fetchCurrentTrack, REFRESH_INTERVAL)
-    return () => clearInterval(intervalId)
-  }, [fetchCurrentTrack])
-
-  const performPlayerAction = useCallback(
-    async (action: () => Promise<void>) => {
-      if (!isLoggedIn()) return
-      try {
-        await action()
-        setTimeout(fetchCurrentTrack, ACTION_DELAY)
-      } catch (e) {
-        console.error(e)
-        setError("Player command failed.")
-      }
+  const mutation = useMutation({
+    mutationFn: async (action: () => Promise<void>) => {
+      await action()
     },
-    [fetchCurrentTrack]
-  )
+    onSuccess: () => {
+      setTimeout(() => {
+        queryClient.invalidateQueries({ queryKey: ["spotify-player"] })
+      }, 500)
+    },
+  })
+
+  const performPlayerAction = useCallback((action: () => Promise<void>) => {
+    if (!isLoggedIn()) return
+    mutation.mutate(action)
+  }, [mutation])
 
   const handlePrevious = useCallback(() => performPlayerAction(playerPrevious), [performPlayerAction])
   const handleNext = useCallback(() => performPlayerAction(playerNext), [performPlayerAction])
@@ -62,7 +46,7 @@ export function useSpotifyPlayer() {
   const handlePlayPause = useCallback(async () => {
     if (!track) return
     const action = track.is_playing ? playerPause : playerPlay
-    await performPlayerAction(action)
+    performPlayerAction(action)
   }, [track, performPlayerAction])
 
   const handleSeek = useCallback((percentage: number) => {
@@ -111,5 +95,15 @@ export function useSpotifyPlayer() {
     return () => window.removeEventListener("keydown", handleKeyDown)
   }, [handlePlayPause, handleNext, handlePrevious, handleFastForward, handleRewind, handleSeek])
 
-  return { track, loading, error, handlePrevious, handleNext, handlePlayPause, handleSeek, handleRewind, handleFastForward }
+  return {
+    track: track || null,
+    loading: isLoading,
+    error: error ? "Failed to fetch player state" : null,
+    handlePrevious,
+    handleNext,
+    handlePlayPause,
+    handleSeek,
+    handleRewind,
+    handleFastForward,
+  }
 }

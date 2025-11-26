@@ -1,31 +1,27 @@
-import { useEffect, useState } from "react"
-import { getAllUserPlaylists, type SpotifyPlaylist } from "@/lib/spotify"
+import { useQuery } from "@tanstack/react-query"
+import { getAllUserPlaylists } from "@/lib/spotify"
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
+import { Skeleton } from "@/components/ui/skeleton"
 import { ExternalLink } from "lucide-react"
 
 export function UserPlaylistsList() {
-  const [playlists, setPlaylists] = useState<SpotifyPlaylist[]>([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+  const { data: playlists = [], isLoading, error } = useQuery({
+    queryKey: ["user-playlists"],
+    queryFn: getAllUserPlaylists,
+  })
 
-  useEffect(() => {
-    const fetchPlaylists = async () => {
-      try {
-        const data = await getAllUserPlaylists()
-        setPlaylists(data)
-      } catch (err) {
-        setError("Failed to load Spotify playlists")
-        console.error(err)
-      } finally {
-        setLoading(false)
-      }
-    }
-    fetchPlaylists()
-  }, [])
+  if (isLoading) {
+    return (
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {[1, 2, 3].map(i => (
+          <Skeleton key={i} className="h-48 w-full" />
+        ))}
+      </div>
+    )
+  }
 
-  if (loading) return <div className="p-8 text-center">Loading playlists...</div>
-  if (error) return <div className="p-8 text-center text-red-500">{error}</div>
+  if (error) return <div className="p-8 text-center text-red-500">Failed to load Spotify playlists</div>
   if (playlists.length === 0) return <div className="p-8 text-center text-muted-foreground">No Spotify playlists found.</div>
 
   return (

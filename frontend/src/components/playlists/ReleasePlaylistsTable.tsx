@@ -1,6 +1,6 @@
-import { useEffect, useState } from "react"
 import { Link } from "react-router-dom"
-import { getReleasePlaylists, type ReleasePlaylistSimple } from "@/lib/clouderApi"
+import { useQuery } from "@tanstack/react-query"
+import { getReleasePlaylists } from "@/lib/clouderApi"
 import { Button } from "@/components/ui/button"
 import {
   Table,
@@ -10,29 +10,16 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
+import { Skeleton } from "@/components/ui/skeleton"
 import { ExternalLink, Play, ListMusic } from "lucide-react"
 import { playerPlayContext } from "@/lib/spotify"
 import { toast } from "sonner"
 
 export function ReleasePlaylistsTable() {
-  const [playlists, setPlaylists] = useState<ReleasePlaylistSimple[]>([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
-
-  useEffect(() => {
-    const fetchPlaylists = async () => {
-      try {
-        const data = await getReleasePlaylists()
-        setPlaylists(data)
-      } catch (err) {
-        setError("Failed to load playlists")
-        console.error(err)
-      } finally {
-        setLoading(false)
-      }
-    }
-    fetchPlaylists()
-  }, [])
+  const { data: playlists = [], isLoading, error } = useQuery({
+    queryKey: ["release-playlists"],
+    queryFn: getReleasePlaylists,
+  })
 
   const handlePlay = async (spotifyPlaylistId: string | null) => {
     if (!spotifyPlaylistId) return
@@ -45,8 +32,17 @@ export function ReleasePlaylistsTable() {
     }
   }
 
-  if (loading) return <div className="p-8 text-center">Loading playlists...</div>
-  if (error) return <div className="p-8 text-center text-red-500">{error}</div>
+  if (isLoading) {
+    return (
+      <div className="space-y-2">
+        {[1, 2, 3].map(i => (
+          <Skeleton key={i} className="h-10 w-full" />
+        ))}
+      </div>
+    )
+  }
+
+  if (error) return <div className="p-8 text-center text-red-500">Failed to load playlists</div>
   if (playlists.length === 0) return <div className="p-8 text-center text-muted-foreground">No release playlists found.</div>
 
   return (
