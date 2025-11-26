@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label"
 import { StyleSelector } from "@/components/categories/StyleSelector"
 import { toast } from "sonner"
 import { Plus } from "lucide-react"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent, CardTitle } from "@/components/ui/card"
 
 const formatISODate = (date: Date) => date.toISOString().slice(0, 10)
 
@@ -79,20 +79,46 @@ export function CreateRawBlockForm() {
     })
   }
 
+  const labelClass = "text-[11px] font-medium uppercase tracking-wide text-muted-foreground"
+  const weekPreview =
+    weekNumber && startDate && endDate
+      ? `WEEK ${padWeek(Number(weekNumber))}: ${startDate} → ${endDate}`
+      : "Waiting for ISO week"
+
   return (
-    <Card className="mb-8">
-      <CardHeader>
-        <CardTitle className="text-lg">Create New Block</CardTitle>
-      </CardHeader>
-      <CardContent>
+    <Card className="mb-8 border border-dashed border-muted bg-muted/30">
+      <CardContent className="p-4">
         <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="space-y-2">
-            <Label>Style</Label>
-            <StyleSelector selectedStyleId={styleId} onSelect={setStyleId} />
+          <div className="flex flex-wrap items-center gap-3">
+            <div>
+              <p className="text-[11px] uppercase tracking-[0.2em] text-muted-foreground">Raw Layer</p>
+              <CardTitle className="text-base font-semibold tracking-tight">Create New Block</CardTitle>
+            </div>
+            <div className="ml-auto flex shrink-0 items-center gap-2">
+              <div className="rounded-md border bg-background px-2 py-1 font-mono text-xs text-muted-foreground">{weekPreview}</div>
+              <Button type="submit" size="sm" disabled={mutation.isPending} className="gap-1">
+                <Plus className="size-3" />
+                {mutation.isPending ? "Creating..." : "Create"}
+              </Button>
+            </div>
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="weekNumber">Week Number (1-53)</Label>
+          <div className="grid gap-3 md:grid-cols-5">
+            <div className="space-y-1.5 md:col-span-3">
+              <Label className={labelClass}>Style</Label>
+              <StyleSelector selectedStyleId={styleId} onSelect={setStyleId} />
+            </div>
+            <div className="space-y-1.5 md:col-span-2">
+              <Label htmlFor="blockName" className={labelClass}>
+                Block Name
+              </Label>
+              <Input id="blockName" value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. WEEK 08" />
+            </div>
+          </div>
+          <div className="grid gap-3 md:grid-cols-4">
+            <div className="space-y-1.5">
+              <Label htmlFor="weekNumber" className={labelClass}>
+                Week #
+              </Label>
               <Input
                 id="weekNumber"
                 type="number"
@@ -100,11 +126,13 @@ export function CreateRawBlockForm() {
                 max={53}
                 value={weekNumber}
                 onChange={(e) => setWeekNumber(e.target.value)}
-                placeholder="e.g. 8"
+                placeholder="08"
               />
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="weekYear">Week Year</Label>
+            <div className="space-y-1.5">
+              <Label htmlFor="weekYear" className={labelClass}>
+                Year
+              </Label>
               <Input
                 id="weekYear"
                 type="number"
@@ -114,33 +142,18 @@ export function CreateRawBlockForm() {
                 onChange={(e) => setWeekYear(e.target.value)}
               />
             </div>
-            <div className="space-y-2">
-              <Label>Auto Week Preview</Label>
-              <div className="h-10 rounded-md border px-3 py-2 text-sm text-muted-foreground flex items-center">
-                {weekNumber && startDate && endDate
-                  ? `WEEK ${padWeek(Number(weekNumber))}: ${startDate} → ${endDate}`
-                  : "Pick a week to auto-fill dates and name"}
-              </div>
-            </div>
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="blockName">Block Name</Label>
-              <Input id="blockName" value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Summer 2025" />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="startDate">Start Date</Label>
+            <div className="space-y-1.5">
+              <Label htmlFor="startDate" className={labelClass}>
+                Start
+              </Label>
               <Input id="startDate" type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} />
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="endDate">End Date</Label>
+            <div className="space-y-1.5">
+              <Label htmlFor="endDate" className={labelClass}>
+                End
+              </Label>
               <Input id="endDate" type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} />
             </div>
-          </div>
-          <div className="flex justify-end">
-            <Button type="submit" disabled={mutation.isPending}>
-              <Plus className="mr-2 size-4" /> {mutation.isPending ? "Creating..." : "Create Block"}
-            </Button>
           </div>
         </form>
       </CardContent>

@@ -31,6 +31,7 @@ export function StyleSelector({ selectedStyleId, onSelect, useBeatportId = false
           <Button
             key={styleId}
             variant={selectedStyleId === styleId ? "default" : "outline"}
+            type="button"
             onClick={() => onSelect(styleId)}
             className={cn("capitalize")}
           >
