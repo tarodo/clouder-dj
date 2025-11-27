@@ -11,8 +11,10 @@ RUN pip install uv
 COPY requirements.txt .
 RUN uv pip install --no-cache --system -r requirements.txt
 
-# 5. Copy application code
+# 5. Copy application code and migrations
 COPY ./app ./app
+COPY alembic.ini .
+COPY alembic ./alembic
 
 # 6. Expose port and run application
 EXPOSE 8000
