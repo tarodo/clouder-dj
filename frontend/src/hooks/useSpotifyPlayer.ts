@@ -16,7 +16,7 @@ const REFRESH_INTERVAL = 3000
 export function useSpotifyPlayer() {
   const queryClient = useQueryClient()
 
-  const { data: track, isLoading, error } = useQuery({
+  const { data: track, isLoading, error } = useQuery<SpotifyCurrentlyPlaying | null>({
     queryKey: ["spotify-player"],
     queryFn: getCurrentlyPlaying,
     refetchInterval: REFRESH_INTERVAL,
