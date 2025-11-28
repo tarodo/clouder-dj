@@ -69,7 +69,13 @@ export async function spotifyFetch(input: RequestInfo | URL, init?: RequestInit)
 
 // For clouder API endpoints that need a token in query params
 export async function clouderTokenizedFetch(input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
-  const url = new URL(input.toString())
+  const base =
+    (typeof window !== "undefined" && window.location?.origin) ||
+    (typeof globalThis !== "undefined" && globalThis.location?.origin) ||
+    undefined
+  const requestUrl =
+    input instanceof Request ? input.url : input instanceof URL ? input.toString() : input.toString()
+  const url = base ? new URL(requestUrl, base) : new URL(requestUrl)
   const headers = new Headers(init?.headers)
   const token = getAccessToken()
   if (token) {
