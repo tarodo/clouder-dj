@@ -1,11 +1,11 @@
 import { useState } from "react"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
-import { getRawLayerBlocks, processRawLayerBlock, type RawLayerPlaylistResponse, type RawLayerBlockSummary } from "@/lib/clouderApi"
+import { getRawLayerBlocks, processRawLayerBlock, deleteRawLayerBlock, type RawLayerPlaylistResponse, type RawLayerBlockSummary } from "@/lib/clouderApi"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
-import { ChevronDown, ChevronLeft, ChevronRight, ExternalLink, Loader2, Play } from "lucide-react"
+import { ChevronDown, ChevronLeft, ChevronRight, ExternalLink, Loader2, Play, Trash2 } from "lucide-react"
 import { playerPlayContext } from "@/lib/spotify"
 import { cn } from "@/lib/utils"
 import { toast } from "sonner"
@@ -36,6 +36,17 @@ export function RawLayerList() {
     },
     onSettled: () => {
       setProcessingBlockId(null)
+    },
+  })
+
+  const deleteMutation = useMutation({
+    mutationFn: (blockId: number) => deleteRawLayerBlock(blockId),
+    onSuccess: () => {
+      toast.success("Raw layer block deleted")
+      queryClient.invalidateQueries({ queryKey: ["raw-layer-blocks"] })
+    },
+    onError: (err: any) => {
+      toast.error(err?.message || "Failed to delete block")
     },
   })
 
@@ -148,6 +159,23 @@ export function RawLayerList() {
                                   <Badge variant={block.status === "PROCESSED" ? "secondary" : "outline"} className="uppercase tracking-wide">
                                     {block.status}
                                   </Badge>
+                                  <Button
+                                    size="icon"
+                                    variant="ghost"
+                                    className="h-6 w-6 text-muted-foreground hover:text-destructive"
+                                    disabled={deleteMutation.isPending}
+                                    onClick={() => {
+                                      if (
+                                        confirm(
+                                          "Delete this block and remove associated Spotify playlists?"
+                                        )
+                                      ) {
+                                        deleteMutation.mutate(block.id)
+                                      }
+                                    }}
+                                  >
+                                    <Trash2 className="size-3" />
+                                  </Button>
                                 </div>
                               </div>
                               <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">

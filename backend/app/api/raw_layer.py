@@ -133,3 +133,25 @@ async def process_raw_layer_block(
             status_code=status.HTTP_404_NOT_FOUND, detail="Block not found"
         )
     return block
+
+
+@router.delete("/raw-blocks/{block_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_raw_layer_block(
+    block_id: int,
+    current_user: User = Depends(get_current_user),
+    uow: AbstractUnitOfWork = Depends(get_uow),
+    user_spotify_client: UserSpotifyClient = Depends(get_user_spotify_client),
+):
+    """
+    Soft deletes a raw layer block and removes associated playlists from Spotify.
+    """
+    raw_layer_service = RawLayerService(
+        db=uow.session, user_spotify_client=user_spotify_client
+    )
+    success = await raw_layer_service.delete_block(
+        block_id=block_id, user_id=current_user.id
+    )
+    if not success:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Block not found"
+        )
