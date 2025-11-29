@@ -73,7 +73,7 @@ export interface RawLayerBlockSummary {
   name: string
   style_id: number
   style_name: string
-  status: "NEW" | "PROCESSED"
+  status: "NEW" | "PROCESSED" | "DELETED"
   start_date: string
   end_date: string
   track_count: number
@@ -84,7 +84,7 @@ export interface RawLayerBlockSummary {
 export interface RawLayerBlockResponse {
   id: number
   name: string
-  status: "NEW" | "PROCESSED"
+  status: "NEW" | "PROCESSED" | "DELETED"
   start_date: string
   end_date: string
   playlists: RawLayerPlaylistResponse[]
@@ -189,6 +189,16 @@ export async function processRawLayerBlock(blockId: number): Promise<RawLayerBlo
     throw new Error((errorData as any).detail || "Failed to process raw layer block")
   }
   return response.json()
+}
+
+export async function deleteRawLayerBlock(blockId: number): Promise<void> {
+  const response = await clouderTokenizedFetch(`${config.api.baseUrl}/curation/raw-blocks/${blockId}`, {
+    method: "DELETE",
+  })
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}))
+    throw new Error((errorData as any).detail || "Failed to delete raw layer block")
+  }
 }
 
 export async function getStyles(): Promise<PaginatedResponse<Style>> {

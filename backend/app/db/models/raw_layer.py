@@ -37,6 +37,7 @@ class RawLayerPlaylistType(str, enum.Enum):
 class RawLayerBlockStatus(str, enum.Enum):
     NEW = "NEW"
     PROCESSED = "PROCESSED"
+    DELETED = "DELETED"
 
 
 raw_layer_block_tracks = Table(

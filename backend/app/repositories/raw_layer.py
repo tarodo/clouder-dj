@@ -13,7 +13,11 @@ from app.db.models.external_data import (
     ExternalDataEntityType,
     ExternalDataProvider,
 )
-from app.db.models.raw_layer import RawLayerBlock, RawLayerPlaylist
+from app.db.models.raw_layer import (
+    RawLayerBlock,
+    RawLayerBlockStatus,
+    RawLayerPlaylist,
+)
 from app.db.models.style import Style
 from app.db.models.track import Track
 from app.repositories.base import BaseRepository
@@ -102,7 +106,10 @@ class RawLayerRepository(BaseRepository[RawLayerBlock]):
     ) -> Tuple[List[RawLayerBlock], int]:
         offset = (params.page - 1) * params.per_page
 
-        base_query = select(self.model).where(self.model.user_id == user_id)
+        base_query = select(self.model).where(
+            self.model.user_id == user_id,
+            self.model.status != RawLayerBlockStatus.DELETED,
+        )
 
         total_query = select(func.count()).select_from(base_query.subquery())
         total_result = await self.db.execute(total_query)
@@ -134,7 +141,9 @@ class RawLayerRepository(BaseRepository[RawLayerBlock]):
         offset = (params.page - 1) * params.per_page
 
         base_query = select(self.model).where(
-            self.model.user_id == user_id, self.model.style_id == style_id
+            self.model.user_id == user_id,
+            self.model.style_id == style_id,
+            self.model.status != RawLayerBlockStatus.DELETED,
         )
 
         total_query = select(func.count()).select_from(base_query.subquery())

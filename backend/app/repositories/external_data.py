@@ -89,3 +89,23 @@ class ExternalDataRepository(BaseRepository[ExternalData]):
             },
         )
         await self.db.execute(upsert_stmt)
+
+    async def get_existing_spotify_links(
+        self,
+        *,
+        entity_type: ExternalDataEntityType,
+        external_ids: List[str],
+    ) -> Dict[str, int | None]:
+        """
+        Returns mapping of Spotify external IDs to currently linked entity IDs.
+        """
+        if not external_ids:
+            return {}
+
+        stmt = select(ExternalData.external_id, ExternalData.entity_id).where(
+            ExternalData.provider == ExternalDataProvider.SPOTIFY,
+            ExternalData.entity_type == entity_type,
+            ExternalData.external_id.in_(external_ids),
+        )
+        result = await self.db.execute(stmt)
+        return {external_id: entity_id for external_id, entity_id in result.all()}

@@ -396,3 +396,27 @@ class RawLayerService:
             playlists=self._build_playlist_responses(block.playlists),
             track_count=len(block.tracks),
         )
+
+    async def delete_block(self, *, block_id: int, user_id: int) -> bool:
+        block = await self.raw_layer_repo.get_by_id_for_user(
+            block_id=block_id, user_id=user_id
+        )
+        if not block:
+            return False
+
+        for playlist in block.playlists:
+            try:
+                await self.spotify_client.unfollow_playlist(
+                    playlist_id=playlist.spotify_playlist_id
+                )
+            except Exception as e:  # pragma: no cover - best effort cleanup
+                log.warning(
+                    "Failed to unfollow playlist during block deletion",
+                    playlist_id=playlist.spotify_playlist_id,
+                    error=str(e),
+                )
+
+        block.status = RawLayerBlockStatus.DELETED
+        self.db.add(block)
+        await self.db.flush()
+        return True
