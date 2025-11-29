@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import uuid
-from typing import Any, Awaitable, Callable, Dict, List, Optional
+from typing import Any, Awaitable, Callable, Dict, List, Optional, Tuple
 
 import httpx
 import structlog
@@ -124,9 +124,12 @@ class EnrichmentService:
                 if not tracks:
                     break
 
-                records_to_upsert: List[Dict[str, Any]] = []
+                track_search_results: List[
+                    Tuple[Track, Dict[str, Any] | None, bool]
+                ] = []
                 for track in tracks:
                     if not track.isrc:
+                        track_search_results.append((track, None, False))
                         continue
 
                     spotify_result = await spotify_client.search_track_by_isrc(
@@ -135,19 +138,74 @@ class EnrichmentService:
                     is_valid_match = self._validate_spotify_search_result(
                         track, spotify_result, similarity_threshold
                     )
+                    track_search_results.append((track, spotify_result, is_valid_match))
 
-                    if spotify_result and is_valid_match:
-                        found_count += 1
+                matched_ids = [
+                    result["id"]
+                    for _, result, is_valid in track_search_results
+                    if result and is_valid and result.get("id")
+                ]
+                existing_links = (
+                    await self.external_data_repo.get_existing_spotify_links(
+                        entity_type=ExternalDataEntityType.TRACK,
+                        external_ids=matched_ids,
+                    )
+                )
+
+                batch_assigned_ids: set[str] = set()
+                records_to_upsert: List[Dict[str, Any]] = []
+                for track, spotify_result, is_valid in track_search_results:
+                    if (
+                        not spotify_result
+                        or not is_valid
+                        or not spotify_result.get("id")
+                    ):
+                        not_found_count += 1
+                        reason = (
+                            {"status": "missing_isrc"}
+                            if not track.isrc
+                            else {"status": "not_found_by_isrc"}
+                        )
                         records_to_upsert.append(
                             {
                                 "provider": ExternalDataProvider.SPOTIFY,
                                 "entity_type": ExternalDataEntityType.TRACK,
                                 "entity_id": track.id,
-                                "external_id": spotify_result["id"],
-                                "raw_data": spotify_result,
+                                "external_id": (
+                                    f"{SPOTIFY_NOT_FOUND_PREFIX}{track.id}_{uuid.uuid4()}"
+                                ),
+                                "raw_data": reason,
                             }
                         )
-                    else:
+                        continue
+
+                    spotify_id = spotify_result["id"]
+                    duplicate_reason: Dict[str, Any] | None = None
+                    existing_entity_id = existing_links.get(spotify_id)
+                    if existing_entity_id and existing_entity_id != track.id:
+                        duplicate_reason = {
+                            "status": "duplicate_spotify_track_existing_link",
+                            "spotify_id": spotify_id,
+                            "linked_track_id": existing_entity_id,
+                        }
+                        log.warning(
+                            "Skipping Spotify track already linked",
+                            track_id=track.id,
+                            spotify_id=spotify_id,
+                            linked_track_id=existing_entity_id,
+                        )
+                    elif spotify_id in batch_assigned_ids:
+                        duplicate_reason = {
+                            "status": "duplicate_spotify_track_in_batch",
+                            "spotify_id": spotify_id,
+                        }
+                        log.warning(
+                            "Skipping duplicate Spotify track in batch",
+                            track_id=track.id,
+                            spotify_id=spotify_id,
+                        )
+
+                    if duplicate_reason:
                         not_found_count += 1
                         records_to_upsert.append(
                             {
@@ -157,9 +215,22 @@ class EnrichmentService:
                                 "external_id": (
                                     f"{SPOTIFY_NOT_FOUND_PREFIX}{track.id}_{uuid.uuid4()}"
                                 ),
-                                "raw_data": {"status": "not_found_by_isrc"},
+                                "raw_data": duplicate_reason,
                             }
                         )
+                        continue
+
+                    batch_assigned_ids.add(spotify_id)
+                    found_count += 1
+                    records_to_upsert.append(
+                        {
+                            "provider": ExternalDataProvider.SPOTIFY,
+                            "entity_type": ExternalDataEntityType.TRACK,
+                            "entity_id": track.id,
+                            "external_id": spotify_id,
+                            "raw_data": spotify_result,
+                        }
+                    )
 
                 if records_to_upsert:
                     await self.external_data_repo.bulk_upsert(records_to_upsert)
@@ -302,14 +373,57 @@ class EnrichmentService:
                 matched_ids = [
                     sid for sid in artist_match_results.values() if sid is not None
                 ]
+                existing_links = (
+                    await self.external_data_repo.get_existing_spotify_links(
+                        entity_type=ExternalDataEntityType.ARTIST,
+                        external_ids=matched_ids,
+                    )
+                )
                 spotify_details = await self._fetch_spotify_artist_details(
                     spotify_client, matched_ids
                 )
 
                 records_to_upsert: List[Dict[str, Any]] = []
+                assigned_spotify_ids: set[str] = set()
                 for db_artist in artists:
                     spotify_id = artist_match_results.get(db_artist.id)
-                    if spotify_id and spotify_id in spotify_details:
+                    duplicate_reason: Dict[str, Any] | None = None
+                    spotify_payload = (
+                        spotify_details.get(spotify_id) if spotify_id else None
+                    )
+
+                    if spotify_id:
+                        existing_entity_id = existing_links.get(spotify_id)
+                        if existing_entity_id and existing_entity_id != db_artist.id:
+                            duplicate_reason = {
+                                "status": "duplicate_spotify_artist_existing_link",
+                                "spotify_id": spotify_id,
+                                "linked_artist_id": existing_entity_id,
+                            }
+                            log.warning(
+                                "Skipping Spotify artist already linked",
+                                artist_id=db_artist.id,
+                                spotify_id=spotify_id,
+                                linked_artist_id=existing_entity_id,
+                            )
+                        elif spotify_id in assigned_spotify_ids:
+                            duplicate_reason = {
+                                "status": "duplicate_spotify_artist_in_batch",
+                                "spotify_id": spotify_id,
+                            }
+                            log.warning(
+                                "Skipping duplicate Spotify artist in batch",
+                                artist_id=db_artist.id,
+                                spotify_id=spotify_id,
+                            )
+                        elif not spotify_payload:
+                            duplicate_reason = {
+                                "status": "spotify_artist_details_missing",
+                                "spotify_id": spotify_id,
+                            }
+
+                    if spotify_id and not duplicate_reason and spotify_payload:
+                        assigned_spotify_ids.add(spotify_id)
                         found_count += 1
                         records_to_upsert.append(
                             {
@@ -317,22 +431,26 @@ class EnrichmentService:
                                 "entity_type": ExternalDataEntityType.ARTIST,
                                 "entity_id": db_artist.id,
                                 "external_id": spotify_id,
-                                "raw_data": spotify_details[spotify_id],
+                                "raw_data": spotify_payload,
                             }
                         )
-                    else:
-                        not_found_count += 1
-                        records_to_upsert.append(
-                            {
-                                "provider": ExternalDataProvider.SPOTIFY,
-                                "entity_type": ExternalDataEntityType.ARTIST,
-                                "entity_id": db_artist.id,
-                                "external_id": (
-                                    f"{SPOTIFY_NOT_FOUND_PREFIX}{db_artist.id}_{uuid.uuid4()}"
-                                ),
-                                "raw_data": {"status": "not_found_by_fuzzy_match"},
-                            }
-                        )
+                        continue
+
+                    not_found_count += 1
+                    raw_status = duplicate_reason or {
+                        "status": "not_found_by_fuzzy_match"
+                    }
+                    records_to_upsert.append(
+                        {
+                            "provider": ExternalDataProvider.SPOTIFY,
+                            "entity_type": ExternalDataEntityType.ARTIST,
+                            "entity_id": db_artist.id,
+                            "external_id": (
+                                f"{SPOTIFY_NOT_FOUND_PREFIX}{db_artist.id}_{uuid.uuid4()}"
+                            ),
+                            "raw_data": raw_status,
+                        }
+                    )
 
                 if records_to_upsert:
                     await self.external_data_repo.bulk_upsert(records_to_upsert)
