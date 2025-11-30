@@ -17,6 +17,7 @@ from app.schemas.category import (
     Category,
     CategoryCreate,
     CategoryCreateResponse,
+    CategoryTrackAdd,
     CategoryUpdate,
     CategoryWithStyle,
 )
@@ -135,6 +136,27 @@ async def delete_category(
         user_id=current_user.id,
     )
     if not deleted_category:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Category not found"
+        )
+
+
+@router.post("/categories/{category_id}/tracks", status_code=status.HTTP_200_OK)
+async def add_track_to_category(
+    category_id: int,
+    track_in: CategoryTrackAdd,
+    current_user: User = Depends(get_current_user),
+    category_service: CategoryService = Depends(get_category_service),
+):
+    """
+    Adds a track to a category's Spotify playlist if it doesn't already exist.
+    """
+    success = await category_service.add_track_to_category_playlist(
+        category_id=category_id,
+        track_uri=track_in.track_uri,
+        user_id=current_user.id,
+    )
+    if not success:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Category not found"
         )

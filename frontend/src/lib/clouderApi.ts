@@ -311,3 +311,14 @@ export async function triggerSpotifyArtistEnrichment(): Promise<{ task_id: strin
   if (!response.ok) throw new Error("Failed to trigger spotify artist enrichment")
   return response.json()
 }
+
+export async function addTrackToCategory(categoryId: number, trackUri: string): Promise<void> {
+  const response = await clouderTokenizedFetch(`${config.api.baseUrl}/curation/categories/${categoryId}/tracks`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ track_uri: trackUri }),
+  })
+  if (!response.ok) throw new Error("Failed to add track to category")
+}

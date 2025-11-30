@@ -10,6 +10,10 @@ class CategoryCreate(CategoryBase):
     is_public: bool = False
 
 
+class CategoryTrackAdd(BaseModel):
+    track_uri: str
+
+
 # For internal service/repository use
 class CategoryCreateInternal(CategoryBase):
     user_id: int
