@@ -26,16 +26,16 @@ export default function CurationPage({ initialTab = "categories" }: CurationPage
     <div className="mx-auto max-w-6xl space-y-6">
 
       <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as CurationTab)} className="w-full">
-        <TabsList className="flex h-auto w-full flex-wrap justify-center gap-2 rounded-full bg-muted/60 p-1 text-xs font-semibold uppercase tracking-[0.35em] text-muted-foreground">
+        <TabsList className="flex h-auto w-auto max-w-full items-center justify-start sm:justify-center rounded-full bg-muted/60 p-1 overflow-x-auto no-scrollbar mx-auto">
           <TabsTrigger
             value="categories"
-            className="w-full rounded-full px-4 py-2 text-xs tracking-[0.25em] sm:w-auto"
+            className="rounded-full px-4 py-1.5 text-xs whitespace-nowrap"
           >
             Categories
           </TabsTrigger>
           <TabsTrigger
             value="collection"
-            className="w-full rounded-full px-4 py-2 text-xs tracking-[0.25em] sm:w-auto"
+            className="rounded-full px-4 py-1.5 text-xs whitespace-nowrap"
           >
             Collection
           </TabsTrigger>
