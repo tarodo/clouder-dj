@@ -64,9 +64,6 @@ export function StylePlaylistsList() {
                     <p className="font-medium truncate" title={category.name}>
                       {category.name}
                     </p>
-                    <p className="text-sm text-muted-foreground truncate">
-                      {category.spotify_playlist_url}
-                    </p>
                   </div>
                   <div className="flex gap-1 sm:gap-2">
                     <Button
