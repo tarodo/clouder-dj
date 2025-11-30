@@ -4,6 +4,7 @@ from typing import List
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 from app.db.models.category import Category
 from app.repositories.base import BaseRepository
@@ -23,6 +24,15 @@ class CategoryRepository(BaseRepository[Category]):
     ) -> List[Category]:
         stmt = select(Category).where(
             Category.user_id == user_id, Category.style_id == style_id
+        )
+        result = await self.db.execute(stmt)
+        return list(result.scalars().all())
+
+    async def get_all_for_user_with_style(self, *, user_id: int) -> List[Category]:
+        stmt = (
+            select(Category)
+            .options(selectinload(Category.style))
+            .where(Category.user_id == user_id)
         )
         result = await self.db.execute(stmt)
         return list(result.scalars().all())

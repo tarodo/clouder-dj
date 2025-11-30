@@ -39,3 +39,7 @@ class Category(CategoryBase):
     spotify_playlist_url: str
 
     model_config = ConfigDict(from_attributes=True)
+
+
+class CategoryWithStyle(Category):
+    style_name: str

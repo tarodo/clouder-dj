@@ -41,6 +41,9 @@ class CategoryService:
             user_id=user_id, style_id=style_id
         )
 
+    async def get_all_categories_for_user(self, *, user_id: int) -> List[Category]:
+        return await self.category_repo.get_all_for_user_with_style(user_id=user_id)
+
     async def create_categories(
         self, *, categories_in: List[CategoryCreate], user: User, style_id: int
     ) -> List[Category]:

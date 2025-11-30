@@ -3,6 +3,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { ReleasePlaylistsTable } from "@/components/playlists/ReleasePlaylistsTable"
 import { RawLayerList } from "@/components/playlists/RawLayerList"
 import { UserPlaylistsList } from "@/components/playlists/UserPlaylistsList"
+import { StylePlaylistsList } from "@/components/playlists/StylePlaylistsList"
 
 export default function PlaylistsPage() {
   const [activeTab, setActiveTab] = useState("raw")
@@ -18,6 +19,9 @@ export default function PlaylistsPage() {
           <TabsTrigger value="raw" className="rounded-full text-xs px-4 py-1.5">
             Raw Layer
           </TabsTrigger>
+          <TabsTrigger value="categorized" className="rounded-full text-xs px-4 py-1.5">
+            Categorized
+          </TabsTrigger>
           <TabsTrigger value="release" className="rounded-full text-xs px-4 py-1.5">
             Release
           </TabsTrigger>
@@ -27,6 +31,9 @@ export default function PlaylistsPage() {
         </TabsList>
         <TabsContent value="raw" className="mt-6">
           <RawLayerList />
+        </TabsContent>
+        <TabsContent value="categorized" className="mt-6">
+          <StylePlaylistsList />
         </TabsContent>
         <TabsContent value="release" className="mt-6">
           <ReleasePlaylistsTable />

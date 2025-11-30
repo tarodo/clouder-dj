@@ -21,6 +21,10 @@ export interface Category {
   spotify_playlist_url: string
 }
 
+export interface CategoryWithStyle extends Category {
+  style_name: string
+}
+
 export interface CategoryCreate {
   name: string
   is_public?: boolean
@@ -211,6 +215,14 @@ export async function getStyles(): Promise<PaginatedResponse<Style>> {
 
 export async function getCategories(styleId: number): Promise<Category[]> {
   const response = await clouderTokenizedFetch(`${config.api.baseUrl}/curation/styles/${styleId}/categories`)
+  if (!response.ok) {
+    throw new Error("Failed to fetch categories")
+  }
+  return response.json()
+}
+
+export async function getAllCategories(): Promise<CategoryWithStyle[]> {
+  const response = await clouderTokenizedFetch(`${config.api.baseUrl}/curation/categories`)
   if (!response.ok) {
     throw new Error("Failed to fetch categories")
   }

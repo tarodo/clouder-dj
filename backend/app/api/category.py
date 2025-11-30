@@ -18,6 +18,7 @@ from app.schemas.category import (
     CategoryCreate,
     CategoryCreateResponse,
     CategoryUpdate,
+    CategoryWithStyle,
 )
 from app.services.category import CategoryService
 
@@ -50,6 +51,26 @@ async def create_categories(
         categories_in=categories_in, user=current_user, style_id=style_id
     )
     return created_categories
+
+
+@router.get("/categories", response_model=List[CategoryWithStyle])
+async def get_all_categories(
+    current_user: User = Depends(get_current_user),
+    category_service: CategoryService = Depends(get_category_service),
+):
+    """
+    Lists all categories for the current user with style information.
+    """
+    categories = await category_service.get_all_categories_for_user(
+        user_id=current_user.id
+    )
+    return [
+        CategoryWithStyle(
+            **{k: v for k, v in c.__dict__.items() if not k.startswith("_")},
+            style_name=c.style.name,
+        )
+        for c in categories
+    ]
 
 
 @router.get("/styles/{style_id}/categories", response_model=List[Category])
