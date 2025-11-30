@@ -4,6 +4,7 @@ import { PlayerProgressBar } from "@/components/player/PlayerProgressBar"
 import { PlayerControls } from "@/components/player/PlayerControls"
 import { CategoryActions } from "@/components/player/CategoryActions"
 import { Card, CardContent } from "@/components/ui/card"
+import { CurrentContextInfo } from "@/components/player/CurrentContextInfo"
 
 export default function PlayerPage() {
   const {
@@ -50,6 +51,7 @@ export default function PlayerPage() {
           />
         </CardContent>
       </Card>
+      <CurrentContextInfo track={track} />
       <div className="mt-4">
         <CategoryActions track={track} onNext={handleNext} />
       </div>

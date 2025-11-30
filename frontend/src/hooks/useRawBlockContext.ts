@@ -1,9 +1,10 @@
 import { useQuery } from "@tanstack/react-query"
-import { getRawLayerBlocks, type RawLayerPlaylistResponse } from "@/lib/clouderApi"
+import { getRawLayerBlocks, type RawLayerBlockSummary, type RawLayerPlaylistResponse } from "@/lib/clouderApi"
 
 export interface RawContextActions {
   targetPlaylists: RawLayerPlaylistResponse[]
   trashPlaylist: RawLayerPlaylistResponse | null
+  activeBlock: RawLayerBlockSummary | null
   isLoading: boolean
   error: string | null
 }
@@ -13,14 +14,14 @@ export function useRawBlockContext(currentContextUri: string | null | undefined)
     queryKey: ["raw-block-context", currentContextUri],
     queryFn: async () => {
       if (!currentContextUri) {
-        return { targets: [], trash: null }
+        return { targets: [], trash: null, activeBlock: null }
       }
 
       const parts = currentContextUri.split(":")
       const contextId = parts[parts.length - 1]
 
       if (!contextId) {
-        return { targets: [], trash: null }
+        return { targets: [], trash: null, activeBlock: null }
       }
 
       const response = await getRawLayerBlocks()
@@ -32,10 +33,10 @@ export function useRawBlockContext(currentContextUri: string | null | undefined)
         const targets = activeBlock.playlists.filter(p => p.type === "TARGET")
         const trash = activeBlock.playlists.find(p => p.type === "TRASH") || null
         targets.sort((a, b) => (a.category_name || "").localeCompare(b.category_name || ""))
-        return { targets, trash }
+        return { targets, trash, activeBlock }
       }
 
-      return { targets: [], trash: null }
+      return { targets: [], trash: null, activeBlock: null }
     },
     enabled: !!currentContextUri,
     staleTime: 1000 * 60 * 5,
@@ -44,6 +45,7 @@ export function useRawBlockContext(currentContextUri: string | null | undefined)
   return {
     targetPlaylists: data?.targets || [],
     trashPlaylist: data?.trash || null,
+    activeBlock: data?.activeBlock || null,
     isLoading,
     error: error ? "Failed to load curation context" : null,
   }
