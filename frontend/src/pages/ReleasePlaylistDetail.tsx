@@ -24,7 +24,7 @@ export default function ReleasePlaylistDetailPage() {
 
   if (isLoading) {
     return (
-      <div className="space-y-4">
+      <div className="mx-auto max-w-6xl space-y-4">
         <Skeleton className="h-12 w-1/3" />
         <Skeleton className="h-96 w-full" />
       </div>
@@ -34,7 +34,7 @@ export default function ReleasePlaylistDetailPage() {
   if (error || !playlist) return <div className="p-8 text-center text-red-500">Playlist not found</div>
 
   return (
-    <div className="space-y-6">
+    <div className="mx-auto max-w-6xl space-y-6">
       <div className="flex items-center gap-4">
         <Button variant="ghost" size="icon" asChild>
           <Link to="/playlists">
