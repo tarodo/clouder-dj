@@ -3,7 +3,7 @@ import { cn } from "@/lib/utils"
 
 const links = [
   { label: "Player", to: "/player" },
-  { label: "Playlists", to: "/release-playlists" },
+  { label: "Playlists", to: "/playlists" },
   { label: "Curation", to: "/curation" },
 ]
 

@@ -69,7 +69,7 @@ export function ReleasePlaylistsTable() {
                     <Play className="size-4" />
                   </Button>
                   <Button variant="ghost" size="icon" asChild title="View Details">
-                    <Link to={`/release-playlists/${playlist.id}`}>
+                    <Link to={`/playlists/${playlist.id}`}>
                       <ListMusic className="size-4" />
                     </Link>
                   </Button>

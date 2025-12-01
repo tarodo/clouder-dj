@@ -37,7 +37,7 @@ export default function ReleasePlaylistDetailPage() {
     <div className="space-y-6">
       <div className="flex items-center gap-4">
         <Button variant="ghost" size="icon" asChild>
-          <Link to="/release-playlists">
+          <Link to="/playlists">
             <ArrowLeft className="size-6" />
           </Link>
         </Button>

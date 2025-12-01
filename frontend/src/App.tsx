@@ -19,9 +19,9 @@ function App() {
         <Route path="/spotify-callback" element={<SpotifyCallbackPage />} />
         <Route path="/logout" element={<LogoutPage />} />
         <Route element={<ProtectedRoute><AppLayout /></ProtectedRoute>}>
-          <Route path="/player" element={<PlayerPage />} />
-          <Route path="/release-playlists" element={<PlaylistsPage />} />
-          <Route path="/release-playlists/:id" element={<ReleasePlaylistDetailPage />} />
+        <Route path="/player" element={<PlayerPage />} />
+        <Route path="/playlists" element={<PlaylistsPage />} />
+        <Route path="/playlists/:id" element={<ReleasePlaylistDetailPage />} />
           <Route path="/curation" element={<CurationPage />} />
           <Route path="/categories" element={<CategoriesPage />} />
           <Route path="/collection" element={<CollectionPage />} />

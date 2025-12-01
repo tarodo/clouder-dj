@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { PillTabs, PillTabsContent, PillTabsList, PillTabsTrigger } from "@/components/ui/pill-tabs"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { StyleSelector } from "@/components/categories/StyleSelector"
 import { CategoryList } from "@/components/categories/CategoryList"
@@ -25,23 +25,17 @@ export default function CurationPage({ initialTab = "categories" }: CurationPage
   return (
     <div className="mx-auto max-w-6xl space-y-6">
 
-      <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as CurationTab)} className="w-full">
-        <TabsList className="flex h-auto w-auto max-w-full items-center justify-start sm:justify-center rounded-full bg-muted/60 p-1 overflow-x-auto no-scrollbar mx-auto">
-          <TabsTrigger
-            value="categories"
-            className="rounded-full px-4 py-1.5 text-xs whitespace-nowrap"
-          >
+      <PillTabs value={activeTab} onValueChange={(value) => setActiveTab(value as CurationTab)} className="w-full">
+        <PillTabsList>
+          <PillTabsTrigger value="categories">
             Categories
-          </TabsTrigger>
-          <TabsTrigger
-            value="collection"
-            className="rounded-full px-4 py-1.5 text-xs whitespace-nowrap"
-          >
+          </PillTabsTrigger>
+          <PillTabsTrigger value="collection">
             Collection
-          </TabsTrigger>
-        </TabsList>
+          </PillTabsTrigger>
+        </PillTabsList>
 
-        <TabsContent value="categories" className="mt-6 space-y-6">
+        <PillTabsContent value="categories" className="mt-6 space-y-6">
           <div className="grid gap-6 lg:grid-cols-[minmax(0,280px),1fr]">
             <Card className="border border-dashed bg-card/40 shadow-none">
               <CardHeader className="space-y-1">
@@ -72,9 +66,9 @@ export default function CurationPage({ initialTab = "categories" }: CurationPage
               </CardContent>
             </Card>
           </div>
-        </TabsContent>
+        </PillTabsContent>
 
-        <TabsContent value="collection" className="mt-6 space-y-6">
+        <PillTabsContent value="collection" className="mt-6 space-y-6">
           <div className="grid gap-6 lg:grid-cols-[2fr,1fr]">
             <Card className="border border-dashed bg-card/40 shadow-none">
               <CardHeader className="space-y-1">
@@ -108,8 +102,8 @@ export default function CurationPage({ initialTab = "categories" }: CurationPage
               </Card>
             </div>
           </div>
-        </TabsContent>
-      </Tabs>
+        </PillTabsContent>
+      </PillTabs>
     </div>
   )
 }

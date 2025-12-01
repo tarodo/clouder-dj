@@ -10,10 +10,6 @@ export default function PlaylistsPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-3xl font-bold">Playlists</h1>
-      </div>
-
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
         <TabsList className="flex h-auto w-auto max-w-full items-center justify-start sm:justify-center rounded-full bg-muted/60 p-1 overflow-x-auto no-scrollbar mx-auto">
           <TabsTrigger value="raw" className="rounded-full text-xs px-4 py-1.5">
