@@ -7,6 +7,9 @@ export interface SpotifyPlaylist {
   external_urls: {
     spotify: string
   }
+  tracks?: {
+    total: number
+  }
 }
 
 interface PlaylistsApiResponse {
@@ -146,4 +149,34 @@ export async function removeTrackFromPlaylist(playlistId: string, trackUri: stri
   if (!response.ok) {
     throw new Error("Failed to remove track from playlist");
   }
+}
+
+export async function getPlaylist(playlistId: string): Promise<SpotifyPlaylist> {
+  const response = await spotifyFetch(`${SPOTIFY_API_BASE}/playlists/${playlistId}`)
+  if (!response.ok) {
+    throw new Error("Failed to fetch playlist")
+  }
+  return response.json()
+}
+
+interface PlaylistTrackItem {
+  track: {
+    uri: string
+  } | null
+}
+
+export async function getPlaylistTracks(playlistId: string): Promise<PlaylistTrackItem[]> {
+  let items: PlaylistTrackItem[] = []
+  let url: string | null = `${SPOTIFY_API_BASE}/playlists/${playlistId}/tracks?limit=50&fields=items(track(uri)),next`
+
+  while (url) {
+    const response = await spotifyFetch(url)
+    if (!response.ok) {
+      throw new Error("Failed to fetch playlist tracks")
+    }
+    const data: { items: PlaylistTrackItem[]; next: string | null } = await response.json()
+    items = items.concat(data.items)
+    url = data.next
+  }
+  return items
 }

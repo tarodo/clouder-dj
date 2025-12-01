@@ -17,7 +17,9 @@ from app.schemas.category import (
     Category,
     CategoryCreate,
     CategoryCreateResponse,
+    CategoryTrackAdd,
     CategoryUpdate,
+    CategoryWithStyle,
 )
 from app.services.category import CategoryService
 
@@ -50,6 +52,26 @@ async def create_categories(
         categories_in=categories_in, user=current_user, style_id=style_id
     )
     return created_categories
+
+
+@router.get("/categories", response_model=List[CategoryWithStyle])
+async def get_all_categories(
+    current_user: User = Depends(get_current_user),
+    category_service: CategoryService = Depends(get_category_service),
+):
+    """
+    Lists all categories for the current user with style information.
+    """
+    categories = await category_service.get_all_categories_for_user(
+        user_id=current_user.id
+    )
+    return [
+        CategoryWithStyle(
+            **{k: v for k, v in c.__dict__.items() if not k.startswith("_")},
+            style_name=c.style.name,
+        )
+        for c in categories
+    ]
 
 
 @router.get("/styles/{style_id}/categories", response_model=List[Category])
@@ -114,6 +136,27 @@ async def delete_category(
         user_id=current_user.id,
     )
     if not deleted_category:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Category not found"
+        )
+
+
+@router.post("/categories/{category_id}/tracks", status_code=status.HTTP_200_OK)
+async def add_track_to_category(
+    category_id: int,
+    track_in: CategoryTrackAdd,
+    current_user: User = Depends(get_current_user),
+    category_service: CategoryService = Depends(get_category_service),
+):
+    """
+    Adds a track to a category's Spotify playlist if it doesn't already exist.
+    """
+    success = await category_service.add_track_to_category_playlist(
+        category_id=category_id,
+        track_uri=track_in.track_uri,
+        user_id=current_user.id,
+    )
+    if not success:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Category not found"
         )

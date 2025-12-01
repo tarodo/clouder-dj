@@ -41,6 +41,9 @@ class CategoryService:
             user_id=user_id, style_id=style_id
         )
 
+    async def get_all_categories_for_user(self, *, user_id: int) -> List[Category]:
+        return await self.category_repo.get_all_for_user_with_style(user_id=user_id)
+
     async def create_categories(
         self, *, categories_in: List[CategoryCreate], user: User, style_id: int
     ) -> List[Category]:
@@ -142,3 +145,21 @@ class CategoryService:
             )
 
         return await self.category_repo.delete(id=category_id)
+
+    async def add_track_to_category_playlist(
+        self, *, category_id: int, track_uri: str, user_id: int
+    ) -> bool:
+        category = await self.category_repo.get(id=category_id)
+        if not category or category.user_id != user_id:
+            return False
+
+        current_uris = await self.spotify_client.get_playlist_items(
+            playlist_id=category.spotify_playlist_id
+        )
+        if track_uri in current_uris:
+            return True
+
+        await self.spotify_client.add_items_to_playlist(
+            playlist_id=category.spotify_playlist_id, track_uris=[track_uri]
+        )
+        return True

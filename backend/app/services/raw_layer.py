@@ -64,23 +64,26 @@ class RawLayerService:
     ) -> List[Dict[str, Any]]:
         playlist_definitions = [
             {
-                "name": f"INBOX // {block_name} // NEW",
+                "name": f"{style.name} :: {block_name} :: NEW",
                 "type": RawLayerPlaylistType.INBOX_NEW,
             },
             {
-                "name": f"INBOX // {block_name} // OLD",
+                "name": f"{style.name} :: {block_name} :: OLD",
                 "type": RawLayerPlaylistType.INBOX_OLD,
             },
             {
-                "name": f"INBOX // {block_name} // NOT",
+                "name": f"{style.name} :: {block_name} :: NOT",
                 "type": RawLayerPlaylistType.INBOX_NOT,
             },
-            {"name": f"TRASH // {block_name}", "type": RawLayerPlaylistType.TRASH},
+            {
+                "name": f"{style.name} :: {block_name} :: TRASH",
+                "type": RawLayerPlaylistType.TRASH,
+            },
         ]
         for category in target_categories:
             playlist_definitions.append(
                 {
-                    "name": f"TARGET // {block_name} // {category.name.upper()}",
+                    "name": f"{style.name} :: {block_name} :: {category.name.upper()}",
                     "type": RawLayerPlaylistType.TARGET,
                     "category_id": category.id,  # type: ignore
                 }

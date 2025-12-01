@@ -1,53 +1,44 @@
-import { useLocation, useNavigate } from "react-router-dom"
-import { Menubar, MenubarMenu, MenubarTrigger } from "@/components/ui/menubar"
+import { NavLink } from "react-router-dom"
 import { cn } from "@/lib/utils"
 
 const links = [
   { label: "Player", to: "/player" },
-  { label: "Playlists", to: "/release-playlists" },
+  { label: "Playlists", to: "/playlists" },
   { label: "Curation", to: "/curation" },
 ]
 
 export function MainMenu() {
-  const location = useLocation()
-  const navigate = useNavigate()
-
-  const isActive = (to: string) => location.pathname.startsWith(to)
-
-  const baseItemStyles =
-    "w-full min-w-[120px] sm:w-auto flex items-center justify-center rounded-full px-4 py-2 text-xs font-semibold uppercase tracking-[0.35em] transition-colors"
-  const activeStyles =
-    "bg-[#1f242d] text-white shadow-sm dark:bg-slate-200 dark:text-slate-900"
-  const inactiveStyles =
-    "bg-transparent text-slate-900 dark:text-slate-100 hover:bg-[#e9ebef] hover:text-slate-900 dark:hover:bg-slate-700/60"
-  const activeLogoutStyles = activeStyles
-  const inactiveLogoutStyles = inactiveStyles
-
   return (
-    <Menubar className="mb-6 mt-2 h-auto w-full flex-wrap items-center gap-2 rounded-2xl border border-dashed bg-card/50 p-3 text-xs shadow-none text-slate-800 dark:text-slate-100">
+    <nav className="flex items-center justify-center p-1 rounded-full border bg-muted/60 max-w-fit mx-auto overflow-x-auto no-scrollbar mb-6 mt-2 gap-1">
       {links.map(({ label, to }) => (
-        <MenubarMenu key={to}>
-          <MenubarTrigger
-            type="button"
-            onClick={() => navigate(to)}
-            className={cn(baseItemStyles, isActive(to) ? activeStyles : inactiveStyles)}
-            aria-current={isActive(to) ? "page" : undefined}
-          >
-            {label}
-          </MenubarTrigger>
-        </MenubarMenu>
-      ))}
-      <div className="hidden flex-1 sm:block" aria-hidden />
-      <MenubarMenu>
-        <MenubarTrigger
-          type="button"
-          onClick={() => navigate("/logout")}
-          className={cn(baseItemStyles, isActive("/logout") ? activeLogoutStyles : inactiveLogoutStyles)}
-          aria-current={isActive("/logout") ? "page" : undefined}
+        <NavLink
+          key={to}
+          to={to}
+          className={({ isActive }) =>
+            cn(
+              "px-4 py-1.5 rounded-full text-xs font-medium transition-all whitespace-nowrap",
+              isActive
+                ? "bg-background text-foreground shadow-sm"
+                : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
+            )
+          }
         >
-          Logout
-        </MenubarTrigger>
-      </MenubarMenu>
-    </Menubar>
+          {label}
+        </NavLink>
+      ))}
+      <NavLink
+        to="/logout"
+        className={({ isActive }) =>
+          cn(
+            "px-4 py-1.5 rounded-full text-xs font-medium transition-all whitespace-nowrap",
+            isActive
+              ? "bg-background text-foreground shadow-sm"
+              : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
+          )
+        }
+      >
+        Logout
+      </NavLink>
+    </nav>
   )
 }

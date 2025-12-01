@@ -21,6 +21,10 @@ export interface Category {
   spotify_playlist_url: string
 }
 
+export interface CategoryWithStyle extends Category {
+  style_name: string
+}
+
 export interface CategoryCreate {
   name: string
   is_public?: boolean
@@ -217,6 +221,14 @@ export async function getCategories(styleId: number): Promise<Category[]> {
   return response.json()
 }
 
+export async function getAllCategories(): Promise<CategoryWithStyle[]> {
+  const response = await clouderTokenizedFetch(`${config.api.baseUrl}/curation/categories`)
+  if (!response.ok) {
+    throw new Error("Failed to fetch categories")
+  }
+  return response.json()
+}
+
 export async function createCategory(styleId: number, data: CategoryCreate): Promise<Category[]> {
   const response = await clouderTokenizedFetch(`${config.api.baseUrl}/curation/styles/${styleId}/categories`, {
     method: "POST",
@@ -298,4 +310,15 @@ export async function triggerSpotifyArtistEnrichment(): Promise<{ task_id: strin
   })
   if (!response.ok) throw new Error("Failed to trigger spotify artist enrichment")
   return response.json()
+}
+
+export async function addTrackToCategory(categoryId: number, trackUri: string): Promise<void> {
+  const response = await clouderTokenizedFetch(`${config.api.baseUrl}/curation/categories/${categoryId}/tracks`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ track_uri: trackUri }),
+  })
+  if (!response.ok) throw new Error("Failed to add track to category")
 }

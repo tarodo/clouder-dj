@@ -10,6 +10,10 @@ class CategoryCreate(CategoryBase):
     is_public: bool = False
 
 
+class CategoryTrackAdd(BaseModel):
+    track_uri: str
+
+
 # For internal service/repository use
 class CategoryCreateInternal(CategoryBase):
     user_id: int
@@ -39,3 +43,7 @@ class Category(CategoryBase):
     spotify_playlist_url: str
 
     model_config = ConfigDict(from_attributes=True)
+
+
+class CategoryWithStyle(Category):
+    style_name: str
