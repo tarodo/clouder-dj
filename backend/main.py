@@ -145,8 +145,6 @@ app.include_router(
 )
 
 
-
-
 @app.get("/")
 async def root():
     logger.info("Root endpoint called")
