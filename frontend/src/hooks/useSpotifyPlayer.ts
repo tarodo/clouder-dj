@@ -28,8 +28,18 @@ export function useSpotifyPlayer() {
   })
 
   // Sync local progress when new track data arrives
+  const lastTrackId = useRef<string | undefined>(undefined)
+
   useEffect(() => {
-    if (track) {
+    if (!track) return
+
+    const currentId = track.item?.id
+    const hasTrackChanged = currentId !== lastTrackId.current
+
+    if (hasTrackChanged) {
+      setLocalProgress(track.progress_ms)
+      lastTrackId.current = currentId
+    } else if (!isInteracting.current) {
       setLocalProgress(track.progress_ms)
     }
   }, [track])
