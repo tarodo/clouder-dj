@@ -19,20 +19,6 @@ FORBIDDEN = "FORBIDDEN"
 USER_NOT_FOUND = "USER_NOT_FOUND"
 INVALID_CREDENTIALS = "INVALID_CREDENTIALS"
 USER_ALREADY_EXISTS = "USER_ALREADY_EXISTS"
-SYSTEM_KIND_NOT_FOUND = "SYSTEM_KIND_NOT_FOUND"
-SYSTEM_KIND_ALREADY_EXISTS = "SYSTEM_KIND_ALREADY_EXISTS"
-SYSTEM_FLAVOR_NOT_FOUND = "SYSTEM_FLAVOR_NOT_FOUND"
-SYSTEM_FLAVOR_ALREADY_EXISTS = "SYSTEM_FLAVOR_ALREADY_EXISTS"
-DATA_TYPE_NOT_FOUND = "DATA_TYPE_NOT_FOUND"
-DATA_TYPE_ALREADY_EXISTS = "DATA_TYPE_ALREADY_EXISTS"
-CREDENTIAL_REF_NOT_FOUND = "CREDENTIAL_REF_NOT_FOUND"
-CREDENTIAL_REF_ALREADY_EXISTS = "CREDENTIAL_REF_ALREADY_EXISTS"
-SYSTEM_NOT_FOUND = "SYSTEM_NOT_FOUND"
-SYSTEM_ALREADY_EXISTS = "SYSTEM_ALREADY_EXISTS"
-DATASET_NOT_FOUND = "DATASET_NOT_FOUND"
-DATASET_ALREADY_EXISTS = "DATASET_ALREADY_EXISTS"
-INVALID_DATASET_KIND = "INVALID_DATASET_KIND"
-DATASET_KIND_MISMATCH = "DATASET_KIND_MISMATCH"
 
 ErrorInfo = Tuple[int, str]
 
@@ -64,62 +50,6 @@ ERROR_MAP = {
     USER_ALREADY_EXISTS: (
         status.HTTP_400_BAD_REQUEST,
         "A user with this email already exists.",
-    ),
-    SYSTEM_KIND_NOT_FOUND: (
-        status.HTTP_404_NOT_FOUND,
-        "The requested system kind was not found.",
-    ),
-    SYSTEM_KIND_ALREADY_EXISTS: (
-        status.HTTP_400_BAD_REQUEST,
-        "A system kind with this code already exists.",
-    ),
-    SYSTEM_FLAVOR_NOT_FOUND: (
-        status.HTTP_404_NOT_FOUND,
-        "The requested system flavor was not found.",
-    ),
-    SYSTEM_FLAVOR_ALREADY_EXISTS: (
-        status.HTTP_400_BAD_REQUEST,
-        "A system flavor with this code already exists.",
-    ),
-    DATA_TYPE_NOT_FOUND: (
-        status.HTTP_404_NOT_FOUND,
-        "The requested data type was not found.",
-    ),
-    DATA_TYPE_ALREADY_EXISTS: (
-        status.HTTP_400_BAD_REQUEST,
-        "A data type with this code already exists for the given system flavor.",
-    ),
-    CREDENTIAL_REF_NOT_FOUND: (
-        status.HTTP_404_NOT_FOUND,
-        "The requested credential reference was not found.",
-    ),
-    CREDENTIAL_REF_ALREADY_EXISTS: (
-        status.HTTP_400_BAD_REQUEST,
-        "A credential reference with this provider and path already exists.",
-    ),
-    SYSTEM_NOT_FOUND: (
-        status.HTTP_404_NOT_FOUND,
-        "The requested system was not found.",
-    ),
-    SYSTEM_ALREADY_EXISTS: (
-        status.HTTP_400_BAD_REQUEST,
-        "A system with this code already exists.",
-    ),
-    DATASET_NOT_FOUND: (
-        status.HTTP_404_NOT_FOUND,
-        "The requested dataset was not found.",
-    ),
-    DATASET_ALREADY_EXISTS: (
-        status.HTTP_400_BAD_REQUEST,
-        "A dataset with this system and object name already exists.",
-    ),
-    INVALID_DATASET_KIND: (
-        status.HTTP_400_BAD_REQUEST,
-        "The provided dataset kind is invalid.",
-    ),
-    DATASET_KIND_MISMATCH: (
-        status.HTTP_400_BAD_REQUEST,
-        "Changing the kind of a dataset is not allowed.",
     ),
 }
 
