@@ -23,6 +23,12 @@ class UserUpdate(NoteMixin):
     full_name: str | None = None
 
 
+class UserPasswordUpdate(BaseModel):
+    """Schema for password update."""
+
+    password: str
+
+
 class UserRead(UserBase, MetaDataMixin):
     """Schema for reading user data."""
 

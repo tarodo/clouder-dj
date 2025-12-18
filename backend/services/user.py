@@ -37,6 +37,22 @@ class UserService:
             db_user = await uow.users.create(obj_in=db_user)
             return UserRead.model_validate(db_user)
 
+    async def update_password(
+        self, uow: UnitOfWork, user_id: uuid.UUID, password: str, editor_id: uuid.UUID
+    ) -> None:
+        """
+        Update user password.
+        """
+        hashed_password = get_password_hash(password)
+        async with uow:
+            db_user = await uow.users.get(user_id)
+            if not db_user:
+                raise AppException(errors.USER_NOT_FOUND)
+
+            db_user.hashed_password = hashed_password
+            db_user.updated_by = editor_id
+            await uow.users.update(db_obj=db_user)
+
     async def get_user(self, uow: UnitOfWork, user_id: uuid.UUID) -> UserRead:
         """
         Get a user by ID.

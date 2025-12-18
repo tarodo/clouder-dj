@@ -18,7 +18,7 @@ from backend.core.errors import (
 from backend.db.uow import UnitOfWork
 from backend.models import User
 from backend.schemas.pagination import Page
-from backend.schemas.user import UserCreate, UserRead
+from backend.schemas.user import UserCreate, UserPasswordUpdate, UserRead
 from backend.services.user import UserService
 
 router = APIRouter()
@@ -103,3 +103,31 @@ async def get_user(
     Get a user by their ID. Requires superuser privileges.
     """
     return await user_service.get_user(uow=uow, user_id=user_id)
+
+
+@router.put(
+    "/{user_id}/password",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Update user password",
+    responses={
+        **build_error_responses(USER_NOT_FOUND, UNAUTHORIZED, FORBIDDEN),
+    },
+)
+async def update_user_password(
+    user_id: uuid.UUID,
+    user_in: UserPasswordUpdate,
+    uow: UnitOfWork = Depends(UnitOfWork),
+    user_service: UserService = Depends(UserService),
+    current_user: User = Depends(get_current_user),
+) -> None:
+    """
+    Update a user's password.
+    Authenticated user can update their own password.
+    Superuser can update any user's password.
+    """
+    if str(current_user.id) != str(user_id) and not current_user.is_superuser:
+        raise AppException(FORBIDDEN)
+
+    await user_service.update_password(
+        uow=uow, user_id=user_id, password=user_in.password, editor_id=current_user.id
+    )
