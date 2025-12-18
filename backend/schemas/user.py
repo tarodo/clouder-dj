@@ -23,16 +23,30 @@ class UserUpdate(NoteMixin):
     full_name: str | None = None
 
 
+class UserAdminUpdate(UserUpdate, NoteMixin):
+    """Schema for user update by admin."""
+
+    is_active: bool | None = None
+    is_superuser: bool | None = None
+
+
 class UserPasswordUpdate(BaseModel):
     """Schema for password update."""
 
     password: str
 
 
-class UserRead(UserBase, MetaDataMixin):
+class UserRead(UserBase):
     """Schema for reading user data."""
 
     is_active: bool
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class UserAdminRead(UserRead, MetaDataMixin):
+    """Schema for reading user data by admin."""
+
     is_superuser: bool
 
     model_config = ConfigDict(from_attributes=True)

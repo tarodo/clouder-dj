@@ -1,3 +1,4 @@
+from backend.core.exceptions import AppException
 import uuid
 
 from fastapi import APIRouter, Depends, status
@@ -18,7 +19,14 @@ from backend.core.errors import (
 from backend.db.uow import UnitOfWork
 from backend.models import User
 from backend.schemas.pagination import Page
-from backend.schemas.user import UserCreate, UserPasswordUpdate, UserRead
+from backend.schemas.user import (
+    UserCreate,
+    UserPasswordUpdate,
+    UserRead,
+    UserUpdate,
+    UserAdminUpdate,
+    UserAdminRead,
+)
 from backend.services.user import UserService
 
 router = APIRouter()
@@ -85,9 +93,31 @@ async def get_current_user_me(
     return UserRead.model_validate(current_user)
 
 
+@router.patch(
+    "/me",
+    response_model=UserRead,
+    summary="Update current user",
+    responses={
+        **build_error_responses(UNAUTHORIZED, USER_ALREADY_EXISTS),
+    },
+)
+async def update_user_me(
+    user_in: UserUpdate,
+    uow: UnitOfWork = Depends(UnitOfWork),
+    user_service: UserService = Depends(UserService),
+    current_user: User = Depends(get_current_user),
+) -> UserRead:
+    """
+    Update the current authenticated user's profile.
+    """
+    return await user_service.update_user(
+        uow=uow, user_id=current_user.id, user_in=user_in, editor_id=current_user.id
+    )
+
+
 @router.get(
     "/{user_id}",
-    response_model=UserRead,
+    response_model=UserAdminRead,
     summary="Get a user by ID",
     responses={
         **build_error_responses(USER_NOT_FOUND, UNAUTHORIZED, FORBIDDEN),
@@ -98,11 +128,36 @@ async def get_user(
     uow: UnitOfWork = Depends(UnitOfWork),
     user_service: UserService = Depends(UserService),
     _current_user: User = Depends(get_current_superuser),
-) -> UserRead:
+) -> UserAdminRead:
     """
     Get a user by their ID. Requires superuser privileges.
     """
-    return await user_service.get_user(uow=uow, user_id=user_id)
+    return await user_service.get_user_admin(uow=uow, user_id=user_id)
+
+
+@router.patch(
+    "/{user_id}",
+    response_model=UserAdminRead,
+    summary="Update a user",
+    responses={
+        **build_error_responses(
+            USER_NOT_FOUND, UNAUTHORIZED, FORBIDDEN, USER_ALREADY_EXISTS
+        ),
+    },
+)
+async def update_user(
+    user_id: uuid.UUID,
+    user_in: UserAdminUpdate,
+    uow: UnitOfWork = Depends(UnitOfWork),
+    user_service: UserService = Depends(UserService),
+    current_superuser: User = Depends(get_current_superuser),
+) -> UserAdminRead:
+    """
+    Update a user. Requires superuser privileges.
+    """
+    return await user_service.update_user_admin(
+        uow=uow, user_id=user_id, user_in=user_in, editor_id=current_superuser.id
+    )
 
 
 @router.put(

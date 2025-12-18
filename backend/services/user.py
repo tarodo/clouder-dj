@@ -7,7 +7,13 @@ from backend.core.security import get_password_hash, verify_password
 from backend.db.uow import UnitOfWork
 from backend.models import User
 from backend.schemas.pagination import Page
-from backend.schemas.user import UserCreate, UserRead
+from backend.schemas.user import (
+    UserCreate,
+    UserRead,
+    UserUpdate,
+    UserAdminUpdate,
+    UserAdminRead,
+)
 
 
 class UserService:
@@ -53,6 +59,64 @@ class UserService:
             db_user.updated_by = editor_id
             await uow.users.update(db_obj=db_user)
 
+    async def _update_user(
+        self,
+        uow: UnitOfWork,
+        user_id: uuid.UUID,
+        user_in: UserUpdate | UserAdminUpdate,
+        editor_id: uuid.UUID,
+    ) -> User:
+        """
+        Internal method to update a user. Returns DB object.
+        """
+        async with uow:
+            db_user = await uow.users.get(user_id)
+            if not db_user:
+                raise AppException(errors.USER_NOT_FOUND)
+
+            if user_in.email and user_in.email != db_user.email:
+                existing_user = await uow.users.get_by_email(user_in.email)
+                if existing_user:
+                    raise AppException(errors.USER_ALREADY_EXISTS)
+
+            update_data = user_in.model_dump(exclude_unset=True)
+            for field, value in update_data.items():
+                setattr(db_user, field, value)
+
+            db_user.updated_by = editor_id
+            db_user = await uow.users.update(db_obj=db_user)
+            return db_user
+
+    async def update_user(
+        self,
+        uow: UnitOfWork,
+        user_id: uuid.UUID,
+        user_in: UserUpdate,
+        editor_id: uuid.UUID,
+    ) -> UserRead:
+        """
+        Update a user. Returns UserRead.
+        """
+        db_user = await self._update_user(
+            uow=uow, user_id=user_id, user_in=user_in, editor_id=editor_id
+        )
+        return UserRead.model_validate(db_user)
+
+    async def update_user_admin(
+        self,
+        uow: UnitOfWork,
+        user_id: uuid.UUID,
+        user_in: UserAdminUpdate,
+        editor_id: uuid.UUID,
+    ) -> UserAdminRead:
+        """
+        Update a user (admin). Returns UserAdminRead.
+        """
+        db_user = await self._update_user(
+            uow=uow, user_id=user_id, user_in=user_in, editor_id=editor_id
+        )
+        return UserAdminRead.model_validate(db_user)
+
     async def get_user(self, uow: UnitOfWork, user_id: uuid.UUID) -> UserRead:
         """
         Get a user by ID.
@@ -63,6 +127,19 @@ class UserService:
                 raise AppException(errors.USER_NOT_FOUND)
             # Convert to Pydantic schema while session is still active
             return UserRead.model_validate(db_user)
+
+    async def get_user_admin(
+        self, uow: UnitOfWork, user_id: uuid.UUID
+    ) -> UserAdminRead:
+        """
+        Get a user by ID.
+        """
+        async with uow:
+            db_user = await uow.users.get(user_id)
+            if not db_user:
+                raise AppException(errors.USER_NOT_FOUND)
+            # Convert to Pydantic schema while session is still active
+            return UserAdminRead.model_validate(db_user)
 
     async def get_users_paginated(
         self, uow: UnitOfWork, *, page: int, size: int
