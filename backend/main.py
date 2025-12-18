@@ -8,6 +8,7 @@ from fastapi.responses import JSONResponse
 import structlog
 from backend.api.v1 import login as v1_login
 from backend.api.v1 import users as v1_users
+from backend.api.v1 import integrations as v1_integrations
 from backend.core.errors import ERROR_MAP
 from backend.core.exceptions import AppException
 from backend.core.log_conf import setup_logging
@@ -142,6 +143,13 @@ app.include_router(
     v1_login.router,
     prefix=f"{api_v1_prefix}/login",
     tags=["Login"],
+)
+
+
+app.include_router(
+    v1_integrations.router,
+    prefix=f"{api_v1_prefix}/integrations",
+    tags=["Integrations"],
 )
 
 

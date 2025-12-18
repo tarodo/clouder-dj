@@ -2,6 +2,7 @@ from datetime import datetime, timedelta, timezone
 
 import bcrypt
 from jose import jwt
+from cryptography.fernet import Fernet
 
 from backend.core.settings import settings
 
@@ -48,3 +49,15 @@ def decode_access_token(token: str) -> dict:
         algorithms=[settings.JWT_ALGORITHM],
     )
     return payload
+
+
+def encrypt_token(token: str) -> str:
+    """Encrypt a token."""
+    f = Fernet(settings.ENCRYPTION_KEY)
+    return f.encrypt(token.encode()).decode()
+
+
+def decrypt_token(token: str) -> str:
+    """Decrypt a token."""
+    f = Fernet(settings.ENCRYPTION_KEY)
+    return f.decrypt(token.encode()).decode()

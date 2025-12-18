@@ -25,6 +25,9 @@ class Settings(BaseSettings):
     JWT_SECRET_KEY: str = "a_super_secret_key_that_should_be_in_env"
     JWT_ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
+    
+    # Encryption
+    ENCRYPTION_KEY: str = "your-encryption-key-must-be-32-url-safe-base64-bytes"
 
     @staticmethod
     def _parse_list_or_wildcard(v: str | List[str]) -> List[str]:

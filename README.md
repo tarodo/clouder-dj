@@ -13,6 +13,7 @@ A collaborative music queueing service with Spotify integration and support for 
 - Authentication via Spotify OAuth2 (PKCE)
 - Async SQLAlchemy, Alembic migrations
 - Logging with structlog
+
 ## Start Project
 
 ### Using Make
@@ -58,4 +59,3 @@ make test-docker PYTEST_ARGS="-k 'test_create_user_success' -vv"
 # Rebuild the test image if dependencies have changed (e.g., Dockerfile or pyproject.toml changed)
 make build-test
 ```
->>>>>>> v0.3.0-base

@@ -167,7 +167,7 @@ class UserService:
         email: str,
         password: str,
         full_name: str | None = None,
-    ) -> UserRead:
+    ) -> UserAdminRead:
         """
         Ensure the initial superuser exists, creating or upgrading as needed.
         """
@@ -191,7 +191,7 @@ class UserService:
                 if updated:
                     db_user.updated_by = db_user.id
                     db_user = await uow.users.update(db_obj=db_user)
-                return UserRead.model_validate(db_user)
+                return UserAdminRead.model_validate(db_user)
 
             hashed_password = get_password_hash(password)
             superuser_id = uuid.uuid4()
@@ -206,4 +206,4 @@ class UserService:
             superuser.created_by = superuser_id
             superuser.updated_by = superuser_id
             superuser = await uow.users.create(obj_in=superuser)
-            return UserRead.model_validate(superuser)
+            return UserAdminRead.model_validate(superuser)

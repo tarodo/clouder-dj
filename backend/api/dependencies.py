@@ -76,3 +76,8 @@ async def get_current_superuser(
             detail="The user doesn't have enough privileges",
         )
     return current_user
+
+
+async def get_uow() -> UnitOfWork:
+    """Dependency to get the UnitOfWork."""
+    return UnitOfWork()
