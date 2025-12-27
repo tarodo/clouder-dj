@@ -1,5 +1,5 @@
 [project]
-name = "AIDE"
+name = "Clouder-DJ"
 version = "0.1.0"
 description = "AIDE Data Contract Service Ingestion Level"
 readme = "README.md"

@@ -10,7 +10,6 @@ from backend.schemas.integration import UserIntegration, UserIntegrationCreate
 from backend.services.integration_service import IntegrationService
 
 router = APIRouter()
-integration_service = IntegrationService()
 
 
 @router.post(
@@ -23,11 +22,12 @@ async def create_integration(
     integration_in: UserIntegrationCreate,
     uow: Annotated[UnitOfWork, Depends(get_uow)],
     current_user: Annotated[User, Depends(get_current_user)],
+    service: IntegrationService = Depends(IntegrationService),
 ) -> UserIntegration:
     """
     Create a new integration for the current user.
     """
-    return await integration_service.create_integration(
+    return await service.create_integration(
         uow=uow, user_id=current_user.id, integration_in=integration_in
     )
 
@@ -40,12 +40,13 @@ async def create_integration(
 async def get_user_integrations(
     uow: Annotated[UnitOfWork, Depends(get_uow)],
     current_user: Annotated[User, Depends(get_current_user)],
+    service: IntegrationService = Depends(IntegrationService),
 ) -> list[UserIntegration]:
     """
     Get all integrations for the current user.
     """
     return list(
-        await integration_service.get_user_integrations(
+        await service.get_user_integrations(
             uow=uow, user_id=current_user.id
         )
     )
@@ -60,10 +61,11 @@ async def delete_integration(
     integration_id: uuid.UUID,
     uow: Annotated[UnitOfWork, Depends(get_uow)],
     current_user: Annotated[User, Depends(get_current_user)],
+    service: IntegrationService = Depends(IntegrationService),
 ) -> None:
     """
     Delete an integration.
     """
-    await integration_service.delete_integration(
+    await service.delete_integration(
         uow=uow, user_id=current_user.id, integration_id=integration_id
     )

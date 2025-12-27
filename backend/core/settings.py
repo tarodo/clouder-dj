@@ -1,5 +1,5 @@
 from typing import List
-from pydantic import field_validator
+from pydantic import field_validator, ValidationInfo
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -41,6 +41,14 @@ class Settings(BaseSettings):
     @classmethod
     def parse_cors_list(cls, v: str | List[str]) -> List[str]:
         return cls._parse_list_or_wildcard(v)
+
+    @field_validator("ENCRYPTION_KEY")
+    @classmethod
+    def check_encryption_key(cls, v: str, info: ValidationInfo) -> str:
+        default_key = "your-encryption-key-must-be-32-url-safe-base64-bytes"
+        if info.data.get("ENV") != "dev" and v == default_key:
+            raise ValueError("ENCRYPTION_KEY must be set in non-dev environments")
+        return v
 
     @property
     def is_dev(self) -> bool:

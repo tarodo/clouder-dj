@@ -3,8 +3,8 @@ from typing import Sequence
 
 from backend.core.security import decrypt_token, encrypt_token
 from backend.db.uow import UnitOfWork
-from backend.models.integration import UserIntegration
-from backend.schemas.integration import UserIntegrationCreate, UserIntegrationUpdate
+from backend.models.integration import UserIntegration as UserIntegrationModel
+from backend.schemas.integration import UserIntegration, UserIntegrationCreate
 
 
 class IntegrationService:
@@ -31,7 +31,7 @@ class IntegrationService:
             encrypted_access_token = encrypt_token(integration_in.access_token)
             encrypted_refresh_token = encrypt_token(integration_in.refresh_token)
 
-            integration = UserIntegration(
+            integration = UserIntegrationModel(
                 user_id=user_id,
                 provider=integration_in.provider,
                 external_id=integration_in.external_id,
@@ -44,7 +44,7 @@ class IntegrationService:
                 updated_by=user_id,
             )
             integration = await uow.integrations.create(obj_in=integration)
-            return integration
+            return UserIntegration.model_validate(integration)
 
     async def get_user_integrations(
         self, uow: UnitOfWork, user_id: uuid.UUID
@@ -57,7 +57,7 @@ class IntegrationService:
             # We assume we return them as is, or maybe we want to mask tokens?
             # usually client doesn't need tokens, only status.
             # But let's return full object for now, mapped to schema in API layer.
-            return integrations
+            return [UserIntegration.model_validate(i) for i in integrations]
 
     async def delete_integration(
         self, uow: UnitOfWork, user_id: uuid.UUID, integration_id: uuid.UUID
