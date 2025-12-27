@@ -39,3 +39,9 @@ class UserIntegration(UserIntegrationInDBBase):
 
 class UserIntegrationInDB(UserIntegrationInDBBase):
     pass
+
+
+class SpotifyAuthUrl(BaseModel):
+    url: str
+
+

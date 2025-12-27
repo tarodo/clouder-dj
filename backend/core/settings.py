@@ -27,7 +27,16 @@ class Settings(BaseSettings):
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
     
     # Encryption
-    ENCRYPTION_KEY: str = "your-encryption-key-must-be-32-url-safe-base64-bytes"
+    ENCRYPTION_KEY: str = "AyM1SysPpbyD8jHwf8479V-18t8WdYv19q7q_5B78dw="
+
+    # Spotify
+    SPOTIFY_CLIENT_ID: str = ""
+    SPOTIFY_CLIENT_SECRET: str = ""
+    SPOTIFY_REDIRECT_URI: str = "http://127.0.0.1:8000/api/v1/integrations/spotify/callback"
+    SPOTIFY_AUTH_URL: str = "https://accounts.spotify.com/authorize"
+    SPOTIFY_TOKEN_URL: str = "https://accounts.spotify.com/api/token"
+    SPOTIFY_API_URL: str = "https://api.spotify.com/v1"
+    SPOTIFY_SCOPES: str = "user-read-private user-read-email playlist-read-private playlist-modify-public playlist-modify-private"
 
     @staticmethod
     def _parse_list_or_wildcard(v: str | List[str]) -> List[str]:
@@ -45,7 +54,7 @@ class Settings(BaseSettings):
     @field_validator("ENCRYPTION_KEY")
     @classmethod
     def check_encryption_key(cls, v: str, info: ValidationInfo) -> str:
-        default_key = "your-encryption-key-must-be-32-url-safe-base64-bytes"
+        default_key = "AyM1SysPpbyD8jHwf8479V-18t8WdYv19q7q_5B78dw="
         if info.data.get("ENV") != "dev" and v == default_key:
             raise ValueError("ENCRYPTION_KEY must be set in non-dev environments")
         return v

@@ -1,7 +1,7 @@
 [project]
 name = "Clouder-DJ"
 version = "0.1.0"
-description = "AIDE Data Contract Service Ingestion Level"
+description = "Clouder-DJ - "
 readme = "README.md"
 requires-python = ">=3.13.9"
 dependencies = [

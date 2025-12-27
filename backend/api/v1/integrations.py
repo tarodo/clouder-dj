@@ -3,10 +3,10 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends, status
 
-from backend.api.dependencies import get_current_user, get_uow
+from backend.api.dependencies import get_current_user, get_uow, oauth2_scheme
 from backend.db.uow import UnitOfWork
 from backend.models import User
-from backend.schemas.integration import UserIntegration, UserIntegrationCreate
+from backend.schemas.integration import UserIntegration, UserIntegrationCreate, SpotifyAuthUrl
 from backend.services.integration_service import IntegrationService
 
 router = APIRouter()
@@ -69,3 +69,39 @@ async def delete_integration(
     await service.delete_integration(
         uow=uow, user_id=current_user.id, integration_id=integration_id
     )
+
+
+@router.get(
+    "/spotify/url",
+    response_model=SpotifyAuthUrl,
+    summary="Get Spotify Auth URL",
+)
+async def get_spotify_auth_url(
+    service: IntegrationService = Depends(IntegrationService),
+    token: str = Depends(oauth2_scheme),
+) -> SpotifyAuthUrl:
+    """
+    Get the URL to redirect the user to for Spotify authentication.
+    """
+    return SpotifyAuthUrl(url=service.get_spotify_auth_url(state=token))
+
+
+@router.get(
+    "/spotify/callback",
+    response_model=UserIntegration,
+    summary="Handle Spotify Callback",
+)
+async def spotify_callback(
+    code: str,
+    state: str,
+    uow: Annotated[UnitOfWork, Depends(get_uow)],
+    service: IntegrationService = Depends(IntegrationService),
+) -> UserIntegration:
+    """
+    Exchange the authorization code for tokens and link the Spotify account.
+    """
+    current_user = await get_current_user(token=state, uow=uow)
+    return await service.link_spotify_account(
+        uow=uow, user_id=current_user.id, code=code
+    )
+
