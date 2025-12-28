@@ -38,6 +38,17 @@ class Settings(BaseSettings):
     SPOTIFY_API_URL: str = "https://api.spotify.com/v1"
     SPOTIFY_SCOPES: str = "user-read-private user-read-email playlist-read-private playlist-modify-public playlist-modify-private"
 
+    # TIDAL
+    TIDAL_CLIENT_ID: str = ""
+    TIDAL_CLIENT_SECRET: str = ""
+    TIDAL_AUTH_URL: str = "https://login.tidal.com/authorize"
+    TIDAL_TOKEN_URL: str = "https://auth.tidal.com/v1/oauth2/token"
+    TIDAL_API_URL: str = "https://api.tidal.com/v1"
+    TIDAL_REDIRECT_URI: str = "http://127.0.0.1:8000/api/v1/integrations/tidal/callback"
+    TIDAL_SCOPES: str = (
+        "user.read collection.read search.read playlists.write playlists.read playback"
+    )
+
     @staticmethod
     def _parse_list_or_wildcard(v: str | List[str]) -> List[str]:
         if isinstance(v, list):

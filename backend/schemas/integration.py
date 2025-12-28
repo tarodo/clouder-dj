@@ -45,3 +45,6 @@ class SpotifyAuthUrl(BaseModel):
     url: str
 
 
+class TidalAuthUrl(BaseModel):
+    url: str
+

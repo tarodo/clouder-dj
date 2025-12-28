@@ -1,12 +1,18 @@
 import uuid
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Depends, HTTPException, status
 
 from backend.api.dependencies import get_current_user, get_uow, oauth2_scheme
+from backend.core.security import decrypt_token
 from backend.db.uow import UnitOfWork
 from backend.models import User
-from backend.schemas.integration import UserIntegration, UserIntegrationCreate, SpotifyAuthUrl
+from backend.schemas.integration import (
+    UserIntegration,
+    UserIntegrationCreate,
+    SpotifyAuthUrl,
+    TidalAuthUrl,
+)
 from backend.services.integration_service import IntegrationService
 
 router = APIRouter()
@@ -103,5 +109,49 @@ async def spotify_callback(
     current_user = await get_current_user(token=state, uow=uow)
     return await service.link_spotify_account(
         uow=uow, user_id=current_user.id, code=code
+    )
+
+
+@router.get(
+    "/tidal/url",
+    response_model=TidalAuthUrl,
+    summary="Get TIDAL Auth URL",
+)
+async def get_tidal_auth_url(
+    service: IntegrationService = Depends(IntegrationService),
+    token: str = Depends(oauth2_scheme),
+) -> TidalAuthUrl:
+    """
+    Get the URL to redirect the user to for TIDAL authentication.
+    """
+    return TidalAuthUrl(url=service.get_tidal_auth_url(state=token))
+
+
+@router.get(
+    "/tidal/callback",
+    response_model=UserIntegration,
+    summary="Handle TIDAL Callback",
+)
+async def tidal_callback(
+    code: str,
+    state: str,
+    uow: Annotated[UnitOfWork, Depends(get_uow)],
+    service: IntegrationService = Depends(IntegrationService),
+) -> UserIntegration:
+    """
+    Exchange the authorization code for tokens and link the TIDAL account.
+    """
+    try:
+        token, encrypted_verifier = state.rsplit(":", 1)
+    except ValueError:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid state parameter"
+        )
+
+    current_user = await get_current_user(token=token, uow=uow)
+    code_verifier = decrypt_token(encrypted_verifier)
+
+    return await service.link_tidal_account(
+        uow=uow, user_id=current_user.id, code=code, code_verifier=code_verifier
     )
 
