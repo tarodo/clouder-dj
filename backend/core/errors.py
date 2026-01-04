@@ -19,6 +19,8 @@ FORBIDDEN = "FORBIDDEN"
 USER_NOT_FOUND = "USER_NOT_FOUND"
 INVALID_CREDENTIALS = "INVALID_CREDENTIALS"
 USER_ALREADY_EXISTS = "USER_ALREADY_EXISTS"
+LABEL_NOT_FOUND = "LABEL_NOT_FOUND"
+LABEL_ALREADY_EXISTS = "LABEL_ALREADY_EXISTS"
 
 ErrorInfo = Tuple[int, str]
 
@@ -50,6 +52,14 @@ ERROR_MAP = {
     USER_ALREADY_EXISTS: (
         status.HTTP_400_BAD_REQUEST,
         "A user with this email already exists.",
+    ),
+    LABEL_NOT_FOUND: (
+        status.HTTP_404_NOT_FOUND,
+        "The requested label was not found.",
+    ),
+    LABEL_ALREADY_EXISTS: (
+        status.HTTP_400_BAD_REQUEST,
+        "A label with this name or code already exists.",
     ),
 }
 

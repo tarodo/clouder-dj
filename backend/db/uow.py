@@ -4,6 +4,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.db.session import AsyncSessionLocal
 from backend.repositories.integration import IntegrationRepository
+from backend.repositories.label import LabelRepository
 from backend.repositories.user import UserRepository
 
 
@@ -15,6 +16,7 @@ class UnitOfWork:
         self.session: AsyncSession = self.session_factory()
         self.users = UserRepository(self.session)
         self.integrations = IntegrationRepository(self.session)
+        self.labels = LabelRepository(self.session)
         return self
 
     async def __aexit__(self, exc_type, exc_val, exc_tb) -> None:
