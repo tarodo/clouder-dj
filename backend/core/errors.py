@@ -21,6 +21,8 @@ INVALID_CREDENTIALS = "INVALID_CREDENTIALS"
 USER_ALREADY_EXISTS = "USER_ALREADY_EXISTS"
 LABEL_NOT_FOUND = "LABEL_NOT_FOUND"
 LABEL_ALREADY_EXISTS = "LABEL_ALREADY_EXISTS"
+RELEASE_NOT_FOUND = "RELEASE_NOT_FOUND"
+RELEASE_ALREADY_EXISTS = "RELEASE_ALREADY_EXISTS"
 
 ErrorInfo = Tuple[int, str]
 
@@ -60,6 +62,14 @@ ERROR_MAP = {
     LABEL_ALREADY_EXISTS: (
         status.HTTP_400_BAD_REQUEST,
         "A label with this name or code already exists.",
+    ),
+    RELEASE_NOT_FOUND: (
+        status.HTTP_404_NOT_FOUND,
+        "The requested release was not found.",
+    ),
+    RELEASE_ALREADY_EXISTS: (
+        status.HTTP_400_BAD_REQUEST,
+        "A release with this code already exists for the label.",
     ),
 }
 

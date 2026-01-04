@@ -2,7 +2,7 @@
   "id": "0",
   "name": "clouder_db-db",
   "createdAt": "2025-12-24T16:49:37.331Z",
-  "updatedAt": "2026-01-04T07:59:49.542Z",
+  "updatedAt": "2026-01-04T09:57:41.574Z",
   "databaseType": "postgresql",
   "tables": [
     {
@@ -805,6 +805,18 @@
         },
         {
           "id": "65",
+          "name": "code",
+          "type": {
+            "id": "text",
+            "name": "text"
+          },
+          "unique": false,
+          "nullable": true,
+          "primaryKey": false,
+          "createdAt": 1767520535039
+        },
+        {
+          "id": "66",
           "name": "label_id",
           "type": {
             "id": "uuid",
@@ -826,13 +838,13 @@
       "diagramId": "w0gac18047ra"
     },
     {
-      "id": "66",
+      "id": "67",
       "name": "labels",
       "x": 604.3721689000708,
       "y": -1084.55642748718,
       "fields": [
         {
-          "id": "67",
+          "id": "68",
           "name": "id",
           "type": {
             "id": "uuid",
@@ -844,7 +856,7 @@
           "createdAt": 1766594977328
         },
         {
-          "id": "68",
+          "id": "69",
           "name": "name",
           "type": {
             "id": "text",
@@ -856,7 +868,7 @@
           "createdAt": 1766594977328
         },
         {
-          "id": "69",
+          "id": "70",
           "name": "code",
           "type": {
             "id": "text",
@@ -878,13 +890,13 @@
       "diagramId": "w0gac18047ra"
     },
     {
-      "id": "70",
+      "id": "71",
       "name": "user_integration",
       "x": 615.1725894544942,
       "y": -823.8648237964713,
       "fields": [
         {
-          "id": "71",
+          "id": "72",
           "name": "id",
           "type": {
             "id": "uuid",
@@ -896,7 +908,7 @@
           "createdAt": 1766594977328
         },
         {
-          "id": "72",
+          "id": "73",
           "name": "user_id",
           "type": {
             "id": "uuid",
@@ -908,7 +920,7 @@
           "createdAt": 1766948119478
         },
         {
-          "id": "73",
+          "id": "74",
           "name": "provider",
           "type": {
             "id": "provider_enum",
@@ -920,7 +932,7 @@
           "createdAt": 1766594977328
         },
         {
-          "id": "74",
+          "id": "75",
           "name": "external_id",
           "type": {
             "id": "text",
@@ -932,7 +944,7 @@
           "createdAt": 1766947963889
         },
         {
-          "id": "75",
+          "id": "76",
           "name": "access_token",
           "type": {
             "id": "text",
@@ -944,7 +956,7 @@
           "createdAt": 1766594977328
         },
         {
-          "id": "76",
+          "id": "77",
           "name": "refresh_token",
           "type": {
             "id": "text",
@@ -956,7 +968,7 @@
           "createdAt": 1766947931548
         },
         {
-          "id": "77",
+          "id": "78",
           "name": "expires_at",
           "type": {
             "id": "timestamp",
@@ -968,7 +980,7 @@
           "createdAt": 1766947941713
         },
         {
-          "id": "78",
+          "id": "79",
           "name": "scope",
           "type": {
             "id": "text",
@@ -980,7 +992,7 @@
           "createdAt": 1766948309712
         },
         {
-          "id": "79",
+          "id": "80",
           "name": "token_type",
           "type": {
             "id": "text",
@@ -1002,13 +1014,13 @@
       "diagramId": "w0gac18047ra"
     },
     {
-      "id": "80",
+      "id": "81",
       "name": "genres",
       "x": 472.98426352339845,
       "y": -133.84993687640164,
       "fields": [
         {
-          "id": "81",
+          "id": "82",
           "name": "id",
           "type": {
             "id": "uuid",
@@ -1020,7 +1032,7 @@
           "createdAt": 1766594977328
         },
         {
-          "id": "82",
+          "id": "83",
           "name": "name",
           "type": {
             "id": "text",
@@ -1042,13 +1054,13 @@
       "diagramId": "w0gac18047ra"
     },
     {
-      "id": "83",
+      "id": "84",
       "name": "artists",
       "x": 1248.95163147309,
       "y": -1439.9370708184433,
       "fields": [
         {
-          "id": "84",
+          "id": "85",
           "name": "id",
           "type": {
             "id": "uuid",
@@ -1060,7 +1072,7 @@
           "createdAt": 1766594977327
         },
         {
-          "id": "85",
+          "id": "86",
           "name": "name",
           "type": {
             "id": "text",
@@ -1082,13 +1094,13 @@
       "diagramId": "w0gac18047ra"
     },
     {
-      "id": "86",
+      "id": "87",
       "name": "blocks",
       "x": 1140.9106925689991,
       "y": -82.02869050405491,
       "fields": [
         {
-          "id": "87",
+          "id": "88",
           "name": "id",
           "type": {
             "id": "uuid",
@@ -1100,7 +1112,7 @@
           "createdAt": 1766594977328
         },
         {
-          "id": "88",
+          "id": "89",
           "name": "name",
           "type": {
             "id": "text",
@@ -1112,7 +1124,7 @@
           "createdAt": 1766594977328
         },
         {
-          "id": "89",
+          "id": "90",
           "name": "user_id",
           "type": {
             "id": "uuid",
@@ -1124,7 +1136,7 @@
           "createdAt": 1766594977328
         },
         {
-          "id": "90",
+          "id": "91",
           "name": "genre_id",
           "type": {
             "id": "uuid",
@@ -1136,7 +1148,7 @@
           "createdAt": 1766594977328
         },
         {
-          "id": "91",
+          "id": "92",
           "name": "start_date",
           "type": {
             "id": "date",
@@ -1148,7 +1160,7 @@
           "createdAt": 1766594977328
         },
         {
-          "id": "92",
+          "id": "93",
           "name": "end_date",
           "type": {
             "id": "date",
@@ -1160,7 +1172,7 @@
           "createdAt": 1766594977328
         },
         {
-          "id": "93",
+          "id": "94",
           "name": "status",
           "type": {
             "id": "block_status_enum",
@@ -1184,13 +1196,13 @@
   ],
   "relationships": [
     {
-      "id": "94",
+      "id": "95",
       "name": "artists_id_fk",
       "sourceSchema": "public",
-      "sourceTableId": "83",
+      "sourceTableId": "84",
       "targetSchema": "public",
       "targetTableId": "45",
-      "sourceFieldId": "84",
+      "sourceFieldId": "85",
       "targetFieldId": "46",
       "sourceCardinality": "one",
       "targetCardinality": "many",
@@ -1198,7 +1210,7 @@
       "diagramId": "w0gac18047ra"
     },
     {
-      "id": "95",
+      "id": "96",
       "name": "categories_id_fk",
       "sourceSchema": "public",
       "sourceTableId": "7",
@@ -1212,27 +1224,27 @@
       "diagramId": "w0gac18047ra"
     },
     {
-      "id": "96",
+      "id": "97",
       "name": "labels_id_fk",
       "sourceSchema": "public",
-      "sourceTableId": "66",
+      "sourceTableId": "67",
       "targetSchema": "public",
       "targetTableId": "62",
-      "sourceFieldId": "67",
-      "targetFieldId": "65",
+      "sourceFieldId": "68",
+      "targetFieldId": "66",
       "sourceCardinality": "one",
       "targetCardinality": "many",
       "createdAt": 1766951449475,
       "diagramId": "w0gac18047ra"
     },
     {
-      "id": "97",
+      "id": "98",
       "name": "raw_blocks_id_fk",
       "sourceSchema": "public",
-      "sourceTableId": "86",
+      "sourceTableId": "87",
       "targetSchema": "public",
       "targetTableId": "27",
-      "sourceFieldId": "87",
+      "sourceFieldId": "88",
       "targetFieldId": "31",
       "sourceCardinality": "one",
       "targetCardinality": "many",
@@ -1240,7 +1252,7 @@
       "diagramId": "w0gac18047ra"
     },
     {
-      "id": "98",
+      "id": "99",
       "name": "releases_id_fk",
       "sourceSchema": "public",
       "sourceTableId": "62",
@@ -1254,13 +1266,13 @@
       "diagramId": "w0gac18047ra"
     },
     {
-      "id": "99",
+      "id": "100",
       "name": "styles_id_fk",
       "sourceSchema": "public",
-      "sourceTableId": "80",
+      "sourceTableId": "81",
       "targetSchema": "public",
       "targetTableId": "7",
-      "sourceFieldId": "81",
+      "sourceFieldId": "82",
       "targetFieldId": "12",
       "sourceCardinality": "one",
       "targetCardinality": "many",
@@ -1268,13 +1280,13 @@
       "diagramId": "w0gac18047ra"
     },
     {
-      "id": "100",
+      "id": "101",
       "name": "styles_id_fk",
       "sourceSchema": "public",
-      "sourceTableId": "80",
+      "sourceTableId": "81",
       "targetSchema": "public",
       "targetTableId": "1",
-      "sourceFieldId": "81",
+      "sourceFieldId": "82",
       "targetFieldId": "3",
       "sourceCardinality": "one",
       "targetCardinality": "many",
@@ -1282,21 +1294,21 @@
       "diagramId": "w0gac18047ra"
     },
     {
-      "id": "101",
+      "id": "102",
       "name": "styles_id_fk",
       "sourceSchema": "public",
-      "sourceTableId": "80",
+      "sourceTableId": "81",
       "targetSchema": "public",
-      "targetTableId": "86",
-      "sourceFieldId": "81",
-      "targetFieldId": "90",
+      "targetTableId": "87",
+      "sourceFieldId": "82",
+      "targetFieldId": "91",
       "sourceCardinality": "one",
       "targetCardinality": "many",
       "createdAt": 1766951701525,
       "diagramId": "w0gac18047ra"
     },
     {
-      "id": "102",
+      "id": "103",
       "name": "tracks_id_fk",
       "sourceSchema": "public",
       "sourceTableId": "14",
@@ -1310,7 +1322,7 @@
       "diagramId": "w0gac18047ra"
     },
     {
-      "id": "103",
+      "id": "104",
       "name": "tracks_id_fk",
       "sourceSchema": "public",
       "sourceTableId": "14",
@@ -1324,7 +1336,7 @@
       "diagramId": "w0gac18047ra"
     },
     {
-      "id": "104",
+      "id": "105",
       "name": "users_id_fk",
       "sourceSchema": "public",
       "sourceTableId": "55",
@@ -1338,7 +1350,7 @@
       "diagramId": "w0gac18047ra"
     },
     {
-      "id": "105",
+      "id": "106",
       "name": "users_id_fk",
       "sourceSchema": "public",
       "sourceTableId": "55",
@@ -1352,35 +1364,35 @@
       "diagramId": "w0gac18047ra"
     },
     {
-      "id": "106",
+      "id": "107",
       "name": "users_id_fk",
       "sourceSchema": "public",
       "sourceTableId": "55",
       "targetSchema": "public",
-      "targetTableId": "70",
+      "targetTableId": "71",
       "sourceFieldId": "56",
-      "targetFieldId": "72",
+      "targetFieldId": "73",
       "sourceCardinality": "one",
       "targetCardinality": "many",
       "createdAt": 1766948360750,
       "diagramId": "w0gac18047ra"
     },
     {
-      "id": "107",
+      "id": "108",
       "name": "users_id_fk",
       "sourceSchema": "public",
       "sourceTableId": "55",
       "targetSchema": "public",
-      "targetTableId": "86",
+      "targetTableId": "87",
       "sourceFieldId": "56",
-      "targetFieldId": "89",
+      "targetFieldId": "90",
       "sourceCardinality": "one",
       "targetCardinality": "many",
       "createdAt": 1766951684260,
       "diagramId": "w0gac18047ra"
     },
     {
-      "id": "108",
+      "id": "109",
       "name": "playlists_block_playlist_id_fk",
       "sourceSchema": "public",
       "sourceTableId": "27",
@@ -1393,7 +1405,7 @@
       "createdAt": 1767347120628
     },
     {
-      "id": "109",
+      "id": "110",
       "name": "playlist_id_fk",
       "sourceSchema": "public",
       "sourceTableId": "32",
@@ -1406,7 +1418,7 @@
       "createdAt": 1767347188666
     },
     {
-      "id": "110",
+      "id": "111",
       "name": "playlist_id_fk",
       "sourceSchema": "public",
       "sourceTableId": "32",
@@ -1423,7 +1435,7 @@
   "areas": [],
   "customTypes": [
     {
-      "id": "111",
+      "id": "112",
       "schema": "public",
       "name": "block_status_enum",
       "kind": "enum",
@@ -1435,7 +1447,7 @@
       "diagramId": "w0gac18047ra"
     },
     {
-      "id": "112",
+      "id": "113",
       "name": "category_type_enum",
       "kind": "enum",
       "values": [
@@ -1446,7 +1458,7 @@
       "diagramId": "w0gac18047ra"
     },
     {
-      "id": "113",
+      "id": "114",
       "schema": "public",
       "name": "entity_type_enum",
       "kind": "enum",
@@ -1459,7 +1471,7 @@
       "diagramId": "w0gac18047ra"
     },
     {
-      "id": "114",
+      "id": "115",
       "schema": "public",
       "name": "provider_enum",
       "kind": "enum",
@@ -1471,7 +1483,7 @@
       "diagramId": "w0gac18047ra"
     },
     {
-      "id": "115",
+      "id": "116",
       "name": "playlist_type_enum",
       "kind": "enum",
       "values": [
