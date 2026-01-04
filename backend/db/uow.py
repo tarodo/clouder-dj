@@ -8,6 +8,8 @@ from backend.repositories.label import LabelRepository
 from backend.repositories.release import ReleaseRepository
 from backend.repositories.user import UserRepository
 from backend.repositories.track import TrackRepository
+from backend.repositories.artist import ArtistRepository
+from backend.repositories.track_artist import TrackArtistRepository
 
 
 class UnitOfWork:
@@ -21,6 +23,8 @@ class UnitOfWork:
         self.labels = LabelRepository(self.session)
         self.releases = ReleaseRepository(self.session)
         self.tracks = TrackRepository(self.session)
+        self.artists = ArtistRepository(self.session)
+        self.track_artists = TrackArtistRepository(self.session)
         return self
 
     async def __aexit__(self, exc_type, exc_val, exc_tb) -> None:

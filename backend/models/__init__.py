@@ -4,6 +4,8 @@ from .integration import UserIntegration as UserIntegration
 from .label import Label as Label
 from .release import Release as Release
 from .track import Track as Track
+from .artist import Artist as Artist
+from .track_artist import TrackArtist as TrackArtist
 
 __all__ = [
     "User",
@@ -11,6 +13,8 @@ __all__ = [
     "Label",
     "Release",
     "Track",
+    "Artist",
+    "TrackArtist",
     "TimestampMixin",
     "UserTrackingMixin",
 ]

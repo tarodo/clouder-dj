@@ -12,6 +12,8 @@ from backend.api.v1 import integrations as v1_integrations
 from backend.api.v1 import labels as v1_labels
 from backend.api.v1 import releases as v1_releases
 from backend.api.v1 import tracks as v1_tracks
+from backend.api.v1 import artists as v1_artists
+from backend.api.v1 import track_artists as v1_track_artists
 from backend.core.errors import ERROR_MAP
 from backend.core.exceptions import AppException
 from backend.core.log_conf import setup_logging
@@ -171,6 +173,18 @@ app.include_router(
     v1_tracks.router,
     prefix=f"{api_v1_prefix}/tracks",
     tags=["Tracks"],
+)
+
+app.include_router(
+    v1_artists.router,
+    prefix=f"{api_v1_prefix}/artists",
+    tags=["Artists"],
+)
+
+app.include_router(
+    v1_track_artists.router,
+    prefix=f"{api_v1_prefix}/track-artists",
+    tags=["Track Artists"],
 )
 
 

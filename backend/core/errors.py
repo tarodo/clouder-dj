@@ -25,6 +25,9 @@ RELEASE_NOT_FOUND = "RELEASE_NOT_FOUND"
 RELEASE_ALREADY_EXISTS = "RELEASE_ALREADY_EXISTS"
 TRACK_NOT_FOUND = "TRACK_NOT_FOUND"
 TRACK_ALREADY_EXISTS = "TRACK_ALREADY_EXISTS"
+ARTIST_NOT_FOUND = "ARTIST_NOT_FOUND"
+TRACK_ARTIST_ALREADY_EXISTS = "TRACK_ARTIST_ALREADY_EXISTS"
+TRACK_ARTIST_NOT_FOUND = "TRACK_ARTIST_NOT_FOUND"
 
 ErrorInfo = Tuple[int, str]
 
@@ -80,6 +83,18 @@ ERROR_MAP = {
     TRACK_ALREADY_EXISTS: (
         status.HTTP_400_BAD_REQUEST,
         "A track with this ISRC already exists.",
+    ),
+    ARTIST_NOT_FOUND: (
+        status.HTTP_404_NOT_FOUND,
+        "The requested artist was not found.",
+    ),
+    TRACK_ARTIST_ALREADY_EXISTS: (
+        status.HTTP_400_BAD_REQUEST,
+        "This artist is already linked to this track.",
+    ),
+    TRACK_ARTIST_NOT_FOUND: (
+        status.HTTP_404_NOT_FOUND,
+        "The requested track-artist link was not found.",
     ),
 }
 
