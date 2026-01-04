@@ -11,6 +11,7 @@ from backend.api.v1 import users as v1_users
 from backend.api.v1 import integrations as v1_integrations
 from backend.api.v1 import labels as v1_labels
 from backend.api.v1 import releases as v1_releases
+from backend.api.v1 import tracks as v1_tracks
 from backend.core.errors import ERROR_MAP
 from backend.core.exceptions import AppException
 from backend.core.log_conf import setup_logging
@@ -164,6 +165,12 @@ app.include_router(
     v1_releases.router,
     prefix=f"{api_v1_prefix}/releases",
     tags=["Releases"],
+)
+
+app.include_router(
+    v1_tracks.router,
+    prefix=f"{api_v1_prefix}/tracks",
+    tags=["Tracks"],
 )
 
 

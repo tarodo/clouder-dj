@@ -23,6 +23,8 @@ LABEL_NOT_FOUND = "LABEL_NOT_FOUND"
 LABEL_ALREADY_EXISTS = "LABEL_ALREADY_EXISTS"
 RELEASE_NOT_FOUND = "RELEASE_NOT_FOUND"
 RELEASE_ALREADY_EXISTS = "RELEASE_ALREADY_EXISTS"
+TRACK_NOT_FOUND = "TRACK_NOT_FOUND"
+TRACK_ALREADY_EXISTS = "TRACK_ALREADY_EXISTS"
 
 ErrorInfo = Tuple[int, str]
 
@@ -70,6 +72,14 @@ ERROR_MAP = {
     RELEASE_ALREADY_EXISTS: (
         status.HTTP_400_BAD_REQUEST,
         "A release with this code already exists for the label.",
+    ),
+    TRACK_NOT_FOUND: (
+        status.HTTP_404_NOT_FOUND,
+        "The requested track was not found.",
+    ),
+    TRACK_ALREADY_EXISTS: (
+        status.HTTP_400_BAD_REQUEST,
+        "A track with this ISRC already exists.",
     ),
 }
 

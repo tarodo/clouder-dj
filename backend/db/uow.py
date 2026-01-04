@@ -7,6 +7,7 @@ from backend.repositories.integration import IntegrationRepository
 from backend.repositories.label import LabelRepository
 from backend.repositories.release import ReleaseRepository
 from backend.repositories.user import UserRepository
+from backend.repositories.track import TrackRepository
 
 
 class UnitOfWork:
@@ -19,6 +20,7 @@ class UnitOfWork:
         self.integrations = IntegrationRepository(self.session)
         self.labels = LabelRepository(self.session)
         self.releases = ReleaseRepository(self.session)
+        self.tracks = TrackRepository(self.session)
         return self
 
     async def __aexit__(self, exc_type, exc_val, exc_tb) -> None:
