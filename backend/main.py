@@ -15,7 +15,7 @@ from backend.api.v1 import tracks as v1_tracks
 from backend.api.v1 import artists as v1_artists
 from backend.api.v1 import track_artists as v1_track_artists
 from backend.core.errors import ERROR_MAP
-from backend.core.exceptions import AppException
+from backend.core.exceptions import AppException, ExternalServiceError
 from backend.core.log_conf import setup_logging
 from backend.core.settings import settings
 from backend.db.uow import UnitOfWork
@@ -74,6 +74,18 @@ async def app_exception_handler(request: Request, exc: AppException):
     return JSONResponse(
         status_code=status_code,
         content=ErrorResponse(error_code=error_code, detail=detail).model_dump(),
+    )
+
+
+@app.exception_handler(ExternalServiceError)
+async def external_service_exception_handler(request: Request, exc: ExternalServiceError):
+    """Handles external service exceptions."""
+    logger.error("External service error", error_detail=exc.detail, status_code=exc.status_code)
+    return JSONResponse(
+        status_code=exc.status_code,
+        content=ErrorResponse(
+            error_code=exc.error_code, detail=exc.detail
+        ).model_dump(),
     )
 
 

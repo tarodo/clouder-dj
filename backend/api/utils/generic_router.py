@@ -9,6 +9,7 @@ from backend.api.dependencies import (
     get_current_superuser,
     get_current_user,
     get_pagination_params,
+    get_uow,
 )
 from backend.core.errors import FORBIDDEN, UNAUTHORIZED, build_error_responses
 from backend.db.uow import UnitOfWork
@@ -60,7 +61,7 @@ def create_crud_router(
     )
     async def get_all(
         service: ServiceType = Depends(service_dependency),
-        uow: UnitOfWork = Depends(UnitOfWork),
+        uow: UnitOfWork = Depends(get_uow),
         pagination: PaginationParams = Depends(get_pagination_params),
     ) -> Any:
         return await service.get_paginated(
@@ -82,7 +83,7 @@ def create_crud_router(
     async def create(
         obj_in: create_schema,  # type: ignore[valid-type]
         service: ServiceType = Depends(service_dependency),
-        uow: UnitOfWork = Depends(UnitOfWork),
+        uow: UnitOfWork = Depends(get_uow),
         current_user: User = Depends(get_current_user),
     ) -> Any:
         creator_id = current_user.id
@@ -102,7 +103,7 @@ def create_crud_router(
     async def get_one(
         obj_id: uuid.UUID,
         service: ServiceType = Depends(service_dependency),
-        uow: UnitOfWork = Depends(UnitOfWork),
+        uow: UnitOfWork = Depends(get_uow),
     ) -> Any:
         return await service.get_by_id(uow=uow, obj_id=obj_id)
 
@@ -121,7 +122,7 @@ def create_crud_router(
         obj_id: uuid.UUID,
         obj_in: update_schema,  # type: ignore[valid-type]
         service: ServiceType = Depends(service_dependency),
-        uow: UnitOfWork = Depends(UnitOfWork),
+        uow: UnitOfWork = Depends(get_uow),
         current_user: User = Depends(get_current_user),
     ) -> Any:
         updater_id = current_user.id
@@ -143,7 +144,7 @@ def create_crud_router(
     async def delete(
         obj_id: uuid.UUID,
         service: ServiceType = Depends(service_dependency),
-        uow: UnitOfWork = Depends(UnitOfWork),
+        uow: UnitOfWork = Depends(get_uow),
     ) -> Any:
         return await service.delete(uow=uow, obj_id=obj_id)
 

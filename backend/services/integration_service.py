@@ -95,62 +95,59 @@ class IntegrationService:
         return f"{settings.SPOTIFY_AUTH_URL}?{urlencode(params)}"
 
     async def link_spotify_account(
-        self, uow: UnitOfWork, user_id: uuid.UUID, code: str
+        self, uow: UnitOfWork, user_id: uuid.UUID, code: str, http_client: httpx.AsyncClient
     ) -> UserIntegration:
         """
         Exchange code for tokens and link Spotify account to user.
         """
-        async with httpx.AsyncClient() as http_client:
-            client = SpotifyAPIClient(http_client)
-            token_data = await client.exchange_code_for_token(code)
-            
-            # Get user profile to identify the account
-            profile = await client.get_user_profile(token_data["access_token"])
-            external_id = profile["id"]
+        client = SpotifyAPIClient(http_client)
+        token_data = await client.exchange_code_for_token(code)
+        
+        # Get user profile to identify the account
+        profile = await client.get_user_profile(token_data["access_token"])
+        external_id = profile["id"]
 
-            # Prepare token data
-            access_token = token_data["access_token"]
-            refresh_token = token_data["refresh_token"]
-            expires_in = token_data["expires_in"]
-            expires_at = (datetime.now(timezone.utc) + timedelta(seconds=expires_in)).replace(tzinfo=None)
-            scope = token_data.get("scope")
+        # Prepare token data
+        access_token = token_data["access_token"]
+        refresh_token = token_data["refresh_token"]
+        expires_in = token_data["expires_in"]
+        expires_at = (datetime.now(timezone.utc) + timedelta(seconds=expires_in)).replace(tzinfo=None)
+        scope = token_data.get("scope")
 
-            # Encrypt tokens
-            encrypted_access_token = encrypt_token(access_token)
-            encrypted_refresh_token = encrypt_token(refresh_token)
+        # Encrypt tokens
+        encrypted_access_token = encrypt_token(access_token)
+        encrypted_refresh_token = encrypt_token(refresh_token)
 
-            async with uow:
-                # Check if integration exists
-                existing = await uow.integrations.get_by_provider_and_external_id(
-                    IntegrationProvider.SPOTIFY, external_id
+        async with uow:
+            # Check if integration exists
+            existing = await uow.integrations.get_by_provider_and_external_id(
+                IntegrationProvider.SPOTIFY, external_id
+            )
+
+            if existing:
+                # Update existing integration
+                existing.user_id = user_id # Re-link if needed
+                return UserIntegration.model_validate(
+                    await uow.integrations.update_tokens(
+                        existing, encrypted_access_token, encrypted_refresh_token, expires_at, scope
+                    )
                 )
-
-                if existing:
-                    # Update existing integration
-                    # Ensure it belongs to the current user (or handle account merging/stealing logic)
-                    # For now, we update the tokens and ensure user_id matches
-                    existing.user_id = user_id # Re-link if needed
-                    return UserIntegration.model_validate(
-                        await uow.integrations.update_tokens(
-                            existing, encrypted_access_token, encrypted_refresh_token, expires_at, scope
-                        )
-                    )
-                else:
-                    # Create new integration
-                    integration = UserIntegrationModel(
-                        user_id=user_id,
-                        provider=IntegrationProvider.SPOTIFY,
-                        external_id=external_id,
-                        access_token=encrypted_access_token,
-                        refresh_token=encrypted_refresh_token,
-                        expires_at=expires_at,
-                        scope=scope,
-                        token_type="Bearer",
-                        created_by=user_id,
-                        updated_by=user_id,
-                    )
-                    created = await uow.integrations.create(obj_in=integration)
-                    return UserIntegration.model_validate(created)
+            else:
+                # Create new integration
+                integration = UserIntegrationModel(
+                    user_id=user_id,
+                    provider=IntegrationProvider.SPOTIFY,
+                    external_id=external_id,
+                    access_token=encrypted_access_token,
+                    refresh_token=encrypted_refresh_token,
+                    expires_at=expires_at,
+                    scope=scope,
+                    token_type="Bearer",
+                    created_by=user_id,
+                    updated_by=user_id,
+                )
+                created = await uow.integrations.create(obj_in=integration)
+                return UserIntegration.model_validate(created)
 
     def get_tidal_auth_url(self, state: str | None = None) -> str:
         """
@@ -186,61 +183,60 @@ class IntegrationService:
         return code_verifier, code_challenge
 
     async def link_tidal_account(
-        self, uow: UnitOfWork, user_id: uuid.UUID, code: str, code_verifier: str
+        self, uow: UnitOfWork, user_id: uuid.UUID, code: str, code_verifier: str, http_client: httpx.AsyncClient
     ) -> UserIntegration:
         """
         Exchange code for tokens and link TIDAL account to user.
         """
-        async with httpx.AsyncClient() as http_client:
-            client = TidalAPIClient(http_client)
-            token_data = await client.exchange_code_for_token(code, code_verifier)
+        client = TidalAPIClient(http_client)
+        token_data = await client.exchange_code_for_token(code, code_verifier)
 
-            # Try to extract user info from token response first
-            external_id = None
-            if "user" in token_data:
-                user_data = token_data["user"]
-                external_id = str(user_data.get("userId") or user_data.get("id"))
-            elif "userId" in token_data:
-                external_id = str(token_data["userId"])
+        # Try to extract user info from token response first
+        external_id = None
+        if "user" in token_data:
+            user_data = token_data["user"]
+            external_id = str(user_data.get("userId") or user_data.get("id"))
+        elif "userId" in token_data:
+            external_id = str(token_data["userId"])
 
-            if not external_id:
-                # Get user profile (session) to get userId
-                session_data = await client.get_user_profile(token_data["access_token"])
-                external_id = str(session_data["userId"])
+        if not external_id:
+            # Get user profile (session) to get userId
+            session_data = await client.get_user_profile(token_data["access_token"])
+            external_id = str(session_data["userId"])
 
-            access_token = token_data["access_token"]
-            refresh_token = token_data["refresh_token"]
-            expires_in = token_data["expires_in"]
-            expires_at = (datetime.now(timezone.utc) + timedelta(seconds=expires_in)).replace(tzinfo=None)
-            scope = token_data.get("scope")
+        access_token = token_data["access_token"]
+        refresh_token = token_data["refresh_token"]
+        expires_in = token_data["expires_in"]
+        expires_at = (datetime.now(timezone.utc) + timedelta(seconds=expires_in)).replace(tzinfo=None)
+        scope = token_data.get("scope")
 
-            encrypted_access_token = encrypt_token(access_token)
-            encrypted_refresh_token = encrypt_token(refresh_token)
+        encrypted_access_token = encrypt_token(access_token)
+        encrypted_refresh_token = encrypt_token(refresh_token)
 
-            async with uow:
-                existing = await uow.integrations.get_by_provider_and_external_id(
-                    IntegrationProvider.TIDAL, external_id
+        async with uow:
+            existing = await uow.integrations.get_by_provider_and_external_id(
+                IntegrationProvider.TIDAL, external_id
+            )
+
+            if existing:
+                existing.user_id = user_id
+                return UserIntegration.model_validate(
+                    await uow.integrations.update_tokens(
+                        existing, encrypted_access_token, encrypted_refresh_token, expires_at, scope
+                    )
                 )
-
-                if existing:
-                    existing.user_id = user_id
-                    return UserIntegration.model_validate(
-                        await uow.integrations.update_tokens(
-                            existing, encrypted_access_token, encrypted_refresh_token, expires_at, scope
-                        )
-                    )
-                else:
-                    integration = UserIntegrationModel(
-                        user_id=user_id,
-                        provider=IntegrationProvider.TIDAL,
-                        external_id=external_id,
-                        access_token=encrypted_access_token,
-                        refresh_token=encrypted_refresh_token,
-                        expires_at=expires_at,
-                        scope=scope,
-                        token_type="Bearer",
-                        created_by=user_id,
-                        updated_by=user_id,
-                    )
-                    created = await uow.integrations.create(obj_in=integration)
-                    return UserIntegration.model_validate(created)
+            else:
+                integration = UserIntegrationModel(
+                    user_id=user_id,
+                    provider=IntegrationProvider.TIDAL,
+                    external_id=external_id,
+                    access_token=encrypted_access_token,
+                    refresh_token=encrypted_refresh_token,
+                    expires_at=expires_at,
+                    scope=scope,
+                    token_type="Bearer",
+                    created_by=user_id,
+                    updated_by=user_id,
+                )
+                created = await uow.integrations.create(obj_in=integration)
+                return UserIntegration.model_validate(created)

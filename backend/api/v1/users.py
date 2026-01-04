@@ -8,6 +8,7 @@ from backend.api.dependencies import (
     get_current_user,
     get_current_superuser,
     get_pagination_params,
+    get_uow,
 )
 from backend.core.errors import (
     FORBIDDEN,
@@ -42,7 +43,7 @@ router = APIRouter()
     },
 )
 async def get_all_users(
-    uow: UnitOfWork = Depends(UnitOfWork),
+    uow: UnitOfWork = Depends(get_uow),
     user_service: UserService = Depends(UserService),
     pagination: PaginationParams = Depends(get_pagination_params),
 ) -> Page[UserRead]:
@@ -65,7 +66,7 @@ async def get_all_users(
 )
 async def create_user(
     user_in: UserCreate,
-    uow: UnitOfWork = Depends(UnitOfWork),
+    uow: UnitOfWork = Depends(get_uow),
     user_service: UserService = Depends(UserService),
     current_superuser: User = Depends(get_current_superuser),
 ) -> UserRead:
@@ -103,7 +104,7 @@ async def get_current_user_me(
 )
 async def update_user_me(
     user_in: UserUpdate,
-    uow: UnitOfWork = Depends(UnitOfWork),
+    uow: UnitOfWork = Depends(get_uow),
     user_service: UserService = Depends(UserService),
     current_user: User = Depends(get_current_user),
 ) -> UserRead:
@@ -125,7 +126,7 @@ async def update_user_me(
 )
 async def get_user(
     user_id: uuid.UUID,
-    uow: UnitOfWork = Depends(UnitOfWork),
+    uow: UnitOfWork = Depends(get_uow),
     user_service: UserService = Depends(UserService),
     _current_user: User = Depends(get_current_superuser),
 ) -> UserAdminRead:
@@ -148,7 +149,7 @@ async def get_user(
 async def update_user(
     user_id: uuid.UUID,
     user_in: UserAdminUpdate,
-    uow: UnitOfWork = Depends(UnitOfWork),
+    uow: UnitOfWork = Depends(get_uow),
     user_service: UserService = Depends(UserService),
     current_superuser: User = Depends(get_current_superuser),
 ) -> UserAdminRead:
@@ -171,7 +172,7 @@ async def update_user(
 async def update_user_password(
     user_id: uuid.UUID,
     user_in: UserPasswordUpdate,
-    uow: UnitOfWork = Depends(UnitOfWork),
+    uow: UnitOfWork = Depends(get_uow),
     user_service: UserService = Depends(UserService),
     current_user: User = Depends(get_current_user),
 ) -> None:

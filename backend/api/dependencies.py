@@ -1,7 +1,8 @@
 import uuid
 from dataclasses import dataclass
-from typing import Annotated
+from typing import Annotated, AsyncGenerator
 
+import httpx
 from fastapi import Depends, HTTPException, Query, status
 from fastapi.security import OAuth2PasswordBearer
 from jose import JWTError
@@ -81,3 +82,9 @@ async def get_current_superuser(
 async def get_uow() -> UnitOfWork:
     """Dependency to get the UnitOfWork."""
     return UnitOfWork()
+
+
+async def get_http_client() -> AsyncGenerator[httpx.AsyncClient, None]:
+    """Dependency to get an async HTTP client."""
+    async with httpx.AsyncClient() as client:
+        yield client

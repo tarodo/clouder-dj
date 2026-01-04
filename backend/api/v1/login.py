@@ -3,6 +3,7 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, status
 from fastapi.security import OAuth2PasswordRequestForm
 
+from backend.api.dependencies import get_uow
 from backend.core.security import create_access_token
 from backend.db.uow import UnitOfWork
 from backend.schemas.error import ErrorResponse
@@ -25,7 +26,7 @@ router = APIRouter()
 )
 async def login_for_access_token(
     form_data: Annotated[OAuth2PasswordRequestForm, Depends()],
-    uow: UnitOfWork = Depends(UnitOfWork),
+    uow: UnitOfWork = Depends(get_uow),
     auth_service: AuthService = Depends(AuthService),
 ) -> Token:
     """

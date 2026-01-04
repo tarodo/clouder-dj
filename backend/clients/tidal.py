@@ -1,7 +1,8 @@
+from http import HTTPStatus
 import httpx
 import structlog
-from fastapi import HTTPException, status
 
+from backend.core.exceptions import ExternalServiceError
 from backend.core.settings import settings
 
 log = structlog.get_logger()
@@ -35,8 +36,8 @@ class TidalAPIClient:
                 status_code=e.response.status_code,
                 response_text=e.response.text,
             )
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
+            raise ExternalServiceError(
+                status_code=HTTPStatus.BAD_REQUEST,
                 detail="Failed to get access token from TIDAL",
             )
 
@@ -59,8 +60,8 @@ class TidalAPIClient:
             response.raise_for_status()
         except httpx.HTTPStatusError as e:
             log.error("Failed to refresh TIDAL token", status_code=e.response.status_code)
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
+            raise ExternalServiceError(
+                status_code=HTTPStatus.UNAUTHORIZED,
                 detail="Failed to refresh TIDAL token",
             )
 
@@ -86,8 +87,8 @@ class TidalAPIClient:
                 status_code=e.response.status_code,
                 response_text=e.response.text,
             )
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
+            raise ExternalServiceError(
+                status_code=HTTPStatus.BAD_REQUEST,
                 detail="Failed to get user profile from TIDAL",
             )
 

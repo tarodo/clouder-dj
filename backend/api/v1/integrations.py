@@ -1,9 +1,10 @@
 import uuid
 from typing import Annotated
 
+import httpx
 from fastapi import APIRouter, Depends, HTTPException, status
 
-from backend.api.dependencies import get_current_user, get_uow, oauth2_scheme
+from backend.api.dependencies import get_current_user, get_http_client, get_uow, oauth2_scheme
 from backend.core.security import decrypt_token
 from backend.db.uow import UnitOfWork
 from backend.models import User
@@ -101,6 +102,7 @@ async def spotify_callback(
     code: str,
     state: str,
     uow: Annotated[UnitOfWork, Depends(get_uow)],
+    http_client: Annotated[httpx.AsyncClient, Depends(get_http_client)],
     service: IntegrationService = Depends(IntegrationService),
 ) -> UserIntegration:
     """
@@ -108,7 +110,7 @@ async def spotify_callback(
     """
     current_user = await get_current_user(token=state, uow=uow)
     return await service.link_spotify_account(
-        uow=uow, user_id=current_user.id, code=code
+        uow=uow, user_id=current_user.id, code=code, http_client=http_client
     )
 
 
@@ -136,6 +138,7 @@ async def tidal_callback(
     code: str,
     state: str,
     uow: Annotated[UnitOfWork, Depends(get_uow)],
+    http_client: Annotated[httpx.AsyncClient, Depends(get_http_client)],
     service: IntegrationService = Depends(IntegrationService),
 ) -> UserIntegration:
     """
@@ -152,6 +155,10 @@ async def tidal_callback(
     code_verifier = decrypt_token(encrypted_verifier)
 
     return await service.link_tidal_account(
-        uow=uow, user_id=current_user.id, code=code, code_verifier=code_verifier
+        uow=uow,
+        user_id=current_user.id,
+        code=code,
+        code_verifier=code_verifier,
+        http_client=http_client,
     )
 

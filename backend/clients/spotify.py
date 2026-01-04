@@ -7,8 +7,9 @@ from urllib.parse import urlparse
 
 import httpx
 import structlog
-from fastapi import HTTPException, status
 
+from backend.core.exceptions import ExternalServiceError
+from fastapi import status
 from backend.core.security import decrypt_token, encrypt_token
 from backend.core.settings import settings
 from backend.models.integration import UserIntegration
@@ -92,7 +93,7 @@ class SpotifyAPIClient:
                 response_headers=dict(token_response.headers),
                 response_text=token_response.text[:200],
             )
-            raise HTTPException(
+            raise ExternalServiceError(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Failed to get access token from Spotify",
             )
@@ -153,7 +154,7 @@ class SpotifyAPIClient:
                 response_headers=dict(profile_response.headers),
                 response_text=profile_response.text[:200],
             )
-            raise HTTPException(
+            raise ExternalServiceError(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Failed to get user profile from Spotify",
             )
@@ -249,12 +250,16 @@ class SpotifyAPIClient:
         return all_artists
 
 
-class SpotifyClientError(HTTPException):
+class SpotifyClientError(ExternalServiceError):
     """Base exception for Spotify client errors."""
 
-    status_code = HTTPStatus.BAD_GATEWAY
-    code = "SPOTIFY_CLIENT_ERROR"
-    detail = "An unspecified Spotify client error occurred."
+    def __init__(
+        self,
+        status_code: int = HTTPStatus.BAD_GATEWAY,
+        detail: str = "An unspecified Spotify client error occurred.",
+        code: str = "SPOTIFY_CLIENT_ERROR",
+    ):
+        super().__init__(status_code=status_code, detail=detail, error_code=code)
 
 
 class SpotifyUnauthorizedError(SpotifyClientError):
@@ -263,8 +268,8 @@ class SpotifyUnauthorizedError(SpotifyClientError):
     def __init__(self, message: str = "Spotify API access unauthorized."):
         super().__init__(
             status_code=HTTPStatus.UNAUTHORIZED,
-            code="SPOTIFY_UNAUTHORIZED",
             detail=message,
+            code="SPOTIFY_UNAUTHORIZED",
         )
 
 
@@ -275,7 +280,7 @@ class SpotifyForbiddenError(SpotifyClientError):
         self, message: str = "Access to the requested Spotify resource is forbidden."
     ):
         super().__init__(
-            status_code=HTTPStatus.FORBIDDEN, code="SPOTIFY_FORBIDDEN", detail=message
+            status_code=HTTPStatus.FORBIDDEN, detail=message, code="SPOTIFY_FORBIDDEN"
         )
 
 
@@ -284,7 +289,7 @@ class SpotifyNotFoundError(SpotifyClientError):
 
     def __init__(self, message: str = "The requested Spotify resource was not found."):
         super().__init__(
-            status_code=HTTPStatus.NOT_FOUND, code="SPOTIFY_NOT_FOUND", detail=message
+            status_code=HTTPStatus.NOT_FOUND, detail=message, code="SPOTIFY_NOT_FOUND"
         )
 
 
