@@ -21,6 +21,10 @@ class ReleaseService(GenericService[Release, ReleaseCreate, ReleaseUpdate, Relea
     async def _pre_create(
         self, uow: UnitOfWork, obj_in: ReleaseCreate, creator_id: uuid.UUID | None
     ) -> None:
+        if obj_in.label_id is not None:
+            if not await uow.labels.get(obj_in.label_id):
+                raise AppException(errors.LABEL_NOT_FOUND)
+
         if obj_in.label_id and obj_in.code:
             existing = await uow.releases.get_by_label_and_code(
                 obj_in.label_id, obj_in.code
@@ -35,6 +39,10 @@ class ReleaseService(GenericService[Release, ReleaseCreate, ReleaseUpdate, Relea
         obj_in: ReleaseUpdate,
         updater_id: uuid.UUID | None,
     ) -> None:
+        if "label_id" in obj_in.model_fields_set and obj_in.label_id is not None:
+            if not await uow.labels.get(obj_in.label_id):
+                raise AppException(errors.LABEL_NOT_FOUND)
+
         target_label_id = (
             obj_in.label_id if "label_id" in obj_in.model_fields_set else db_obj.label_id
         )

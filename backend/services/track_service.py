@@ -21,6 +21,10 @@ class TrackService(GenericService[Track, TrackCreate, TrackUpdate, TrackRead]):
     async def _pre_create(
         self, uow: UnitOfWork, obj_in: TrackCreate, creator_id: uuid.UUID | None
     ) -> None:
+        if obj_in.release_id is not None:
+            if not await uow.releases.get(obj_in.release_id):
+                raise AppException(errors.RELEASE_NOT_FOUND)
+
         if obj_in.isrc:
             if await uow.tracks.get_by_isrc(obj_in.isrc):
                 raise AppException(errors.TRACK_ALREADY_EXISTS)
@@ -32,6 +36,10 @@ class TrackService(GenericService[Track, TrackCreate, TrackUpdate, TrackRead]):
         obj_in: TrackUpdate,
         updater_id: uuid.UUID | None,
     ) -> None:
+        if "release_id" in obj_in.model_fields_set and obj_in.release_id is not None:
+            if not await uow.releases.get(obj_in.release_id):
+                raise AppException(errors.RELEASE_NOT_FOUND)
+
         if obj_in.isrc is not None and obj_in.isrc != db_obj.isrc:
             if await uow.tracks.get_by_isrc(obj_in.isrc):
                 raise AppException(errors.TRACK_ALREADY_EXISTS)
